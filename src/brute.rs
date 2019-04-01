@@ -1,12 +1,12 @@
 use crate::{Game, GameBot};
 
-pub struct Controller<T: Game> {
+pub struct Bot<T: Game> {
     player: T::Player,
     depth: u8,
     calls: u32
 }
 
-impl<T: Game> GameBot<T> for Controller<T> {
+impl<T: Game> GameBot<T> for Bot<T> {
     fn select(&mut self, state: &T) -> Option<T::Action> {
         let (active, actions) = state.actions(&self.player);
         if !active {
@@ -32,7 +32,7 @@ impl<T: Game> GameBot<T> for Controller<T> {
     }
 }
 
-impl<T: Game> Controller<T> {
+impl<T: Game> Bot<T> {
     pub fn new(player: T::Player, depth: u8) -> Self {
         Self {
             player,

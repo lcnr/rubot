@@ -7,7 +7,7 @@
 //! 
 //! His code is licensed under the [Mozilla Public License 2.0](https://github.com/sunjay/tic-tac-toe/blob/master/LICENSE)
 //! 
-//! # Adding `game-controller` support
+//! # Adding `rubot` support
 //! 
 //! All relevant changes were made in lines 274 to 311 as well as adding a bot opponent in `fn main`. 
 use std::io::{self, Write};
@@ -230,8 +230,8 @@ fn print_tiles(tiles: &Tiles) {
 fn main() {
     let mut game = Game::new();
     // tic tac toe can easily be completely computed, so no need to limit the depth
-    use game_controller::{Controller, GameBot};
-    let mut opponent = Controller::new(Piece::O, std::u8::MAX);
+    use rubot::{Bot, GameBot};
+    let mut opponent = Bot::new(Piece::O, std::u8::MAX);
     while !game.is_finished() {
         print_tiles(game.tiles());
         match game.current_piece() {
@@ -274,7 +274,7 @@ fn main() {
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct Action(usize, usize);
 
-impl game_controller::Game for Game {
+impl rubot::Game for Game {
     type Player = Piece;
     type Action = Action;
     type Actions = Vec<Action>;

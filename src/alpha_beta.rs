@@ -2,7 +2,7 @@ use crate::{Game, GameBot};
 
 use std::cmp::Ord;
 
-pub struct Controller<T: Game> {
+pub struct Bot<T: Game> {
     player: T::Player,
 
     depth: u8,
@@ -21,7 +21,7 @@ fn select<T: Ord>(old: &mut Option<T>, new: T, max: bool) {
     }
 }
 
-impl<T: Game> GameBot<T> for Controller<T> {
+impl<T: Game> GameBot<T> for Bot<T> {
     fn select(&mut self, state: &T) -> Option<T::Action> {
         let (active, actions) = state.actions(&self.player);
         if !active { return None }
@@ -53,7 +53,7 @@ impl<T: Game> GameBot<T> for Controller<T> {
     }
 }
 
-impl<T: Game> Controller<T> {
+impl<T: Game> Bot<T> {
     pub fn new(player: T::Player, depth: u8) -> Self {
         Self {
             player,

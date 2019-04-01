@@ -32,5 +32,5 @@ pub trait GameBot<T: Game> {
     fn select(&mut self, state: &T) -> Option<T::Action>;
 }
 
-/// The currently recommended game controller, the actual implementation used is bound to change during development
-pub use alpha_beta::Controller as Controller;
+/// The currently recommended game bot, the actual implementation used is bound to change during development
+pub use alpha_beta::Bot as Bot;
