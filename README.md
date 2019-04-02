@@ -9,7 +9,8 @@ If this is not the case for your project, please create an issue on github.
 
 To run the examples, download the repository and run `cargo run --example <example name>`.
 
-- `tic-tac-toe`: A port of [Sunjay's wonderful implementation], implementing and using `rubot` required about 40 loc.
+- `tic-tac-toe`: A port of [Sunjay's wonderful tic-tac-toe implementation], adding and using `rubot` required about 40 loc.
+- `oko`: A mixture of [Dots and Boxes] and tic-tac-toe, `rubot` took 30 additional loc.
 
 [Stockfish]:https://www.chessprogramming.org/Stockfish
 [Sunjay's wonderful implementation]: https://github.com/sunjay/tic-tac-toe.git
