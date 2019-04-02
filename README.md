@@ -10,7 +10,7 @@ If this is not the case for your project, please create an issue on github.
 To run the examples, download the repository and run `cargo run --example <example name>`.
 
 - `tic-tac-toe`: A port of [Sunjay's wonderful tic-tac-toe implementation], adding and using `rubot` required about 40 loc.
-- `oko`: An original game based on [Dots and Boxes] and tic-tac-toe.
+- `oko`: An original game inspired by [Dots and Boxes] and tic-tac-toe.
 
 
 [Stockfish]:https://www.chessprogramming.org/Stockfish
