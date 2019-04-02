@@ -1,4 +1,4 @@
-//! A game I created while I was in still in school.
+//! A game I created while I was still in school.
 //! 
 //! # Rules
 //! 
