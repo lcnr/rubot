@@ -1,42 +1,54 @@
 use crate::{Game, GameBot};
 
+use std::time::{Duration, Instant};
+
 pub struct Bot<T: Game> {
     player: T::Player,
-    depth: u8,
-    calls: u32
+    calls: u32,
 }
 
 impl<T: Game> GameBot<T> for Bot<T> {
-    fn select(&mut self, state: &T) -> Option<T::Action> {
+    fn select(&mut self, state: &T, duration: Duration) -> Option<T::Action> {
+        let now = Instant::now();
+
         let (active, actions) = state.actions(&self.player);
-        if !active {
-            None
+        if !active { return None }
+
+        let mut actions: Vec<_> = actions.into_iter().collect();
+        if actions.len() < 2 {
+            return actions.pop()
         }
-        else {
-            let mut actions = actions.into_iter();
+
+        let mut selected = 0;
+        for depth in 0.. {
+            let mut actions = actions.iter().enumerate();
 
             let mut best = {
                 let action = actions.next()?;
-                let value = self.minimax(state, &action, self.depth);
+                let value = self.minimax(state, &action.1, depth);
                 (action, value)
             };
 
             for action in actions {
-                let new = self.minimax(state, &action, self.depth);
+                let new = self.minimax(state, &action.1, depth);
                 if new > best.1 {
                     best = (action, new);
                 }
             }
-            Some(best.0)
+
+            if now.elapsed() > duration {
+                selected = (best.0).0;
+                break;
+            }
         }
+        Some(actions.swap_remove(selected))
     }
 }
 
 impl<T: Game> Bot<T> {
-    pub fn new(player: T::Player, depth: u8) -> Self {
+    pub fn new(player: T::Player) -> Self {
         Self {
             player,
-            depth,
             calls: 0
         }
     }
@@ -45,7 +57,7 @@ impl<T: Game> Bot<T> {
         self.calls
     }
 
-    fn minimax(&mut self, state: &T, action: &T::Action, depth: u8) -> T::Fitness {
+    fn minimax(&mut self, state: &T, action: &T::Action, depth: u32) -> T::Fitness {
         self.calls += 1;
 
         if depth == 0 {

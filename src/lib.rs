@@ -1,5 +1,6 @@
 pub mod alpha_beta;
 pub mod brute;
+use std::time::Duration;
 
 pub trait Game: Clone {
     type Player;
@@ -28,8 +29,9 @@ pub trait Game: Clone {
 pub trait GameBot<T: Game> {
     /// Returns a chosen action based on the given game state.
     ///
-    /// In case no `Action` is possible or the bot is not currently active, this functions returns `None`.
-    fn select(&mut self, state: &T) -> Option<T::Action>;
+    /// In case no `Action` is possible or the bot is not the currently active player, this functions returns `None`.
+    /// This methodd runs for a duration which is smaller or slightly larger than `duration`.
+    fn select(&mut self, state: &T, duration: Duration) -> Option<T::Action>;
 }
 
 /// The currently recommended game bot, the actual implementation used is bound to change during development

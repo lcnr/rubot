@@ -12,6 +12,7 @@
 //! All relevant changes were made in lines 274 to 311 as well as adding a bot opponent in `fn main`. 
 use std::io::{self, Write};
 use std::process;
+use std::time::Duration;
 
 mod game {
     const BOARD_SIZE: usize = 3;
@@ -231,7 +232,7 @@ fn main() {
     let mut game = Game::new();
     // tic tac toe can easily be completely computed, so no need to limit the depth
     use rubot::{Bot, GameBot};
-    let mut opponent = Bot::new(Piece::O, std::u8::MAX);
+    let mut opponent = Bot::new(Piece::O);
     while !game.is_finished() {
         print_tiles(game.tiles());
         match game.current_piece() {
@@ -257,7 +258,7 @@ fn main() {
                 }
             }
             Piece::O => {
-                let action = opponent.select(&game).unwrap();
+                let action = opponent.select(&game, Duration::from_secs(1)).unwrap();
                 game.make_move(action.0, action.1).unwrap();
             }
         }
