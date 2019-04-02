@@ -1,6 +1,6 @@
 # rubot
 
-A rust library for easily usable game bots. While these controllers are a lot worse than a specialized engine like [Stockfish], they are often good enough be an interesting challenge in most games.
+A rust library for easily usable game bots. While these controllers are a lot worse than a specialized engine like [Stockfish], they are good enough be an interesting challenge in most games.
 
 Integrating `rubot` in your project should be possible in about half an hour while requiring a total of less than **100** lines of code. 
 If this is not the case for your project, please create an issue on github.
