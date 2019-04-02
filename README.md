@@ -1,4 +1,4 @@
-#! **ru**st **bot**
+# rubot
 
 A rust library for easily usable game bots. While these controllers are a lot worse than a specialized engine like [Stockfish], they are often good enough be an interesting challenge in most games.
 
@@ -10,7 +10,9 @@ If this is not the case for your project, please create an issue on github.
 To run the examples, download the repository and run `cargo run --example <example name>`.
 
 - `tic-tac-toe`: A port of [Sunjay's wonderful tic-tac-toe implementation], adding and using `rubot` required about 40 loc.
-- `oko`: A mixture of [Dots and Boxes] and tic-tac-toe, `rubot` took 30 additional loc.
+- `oko`: An original game based on [Dots and Boxes] and tic-tac-toe.
+
 
 [Stockfish]:https://www.chessprogramming.org/Stockfish
-[Sunjay's wonderful implementation]: https://github.com/sunjay/tic-tac-toe.git
+[Sunjay's wonderful tic-tac-toe implementation]: https://github.com/sunjay/tic-tac-toe.git
+[Dots and Boxes]:https://en.wikipedia.org/wiki/Dots_and_Boxes
