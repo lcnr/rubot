@@ -3,6 +3,3 @@ name = "rubot"
 version = "0.1.0"
 authors = ["lcnr/Bastian Kauschke <bastian_kauschke@hotmail.de>"]
 edition = "2018"
-
-[dependencies]
-hashbrown = "0.1.7"
