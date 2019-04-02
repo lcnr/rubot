@@ -1,9 +1,9 @@
-//! A game I created while I was still in school.
+//! A game I created while I was in still in school.
 //! 
 //! # Rules
 //! 
 //! - 2 players take turns consisting of up to one action, in case no action is possible the player has to skip this round.
-//! - the players start with one unit in opposite corners.
+//! - the players both start with one exactly one unit.
 //! 
 //! ```txt
 //! .......o
@@ -14,7 +14,7 @@
 //! ```
 //! 
 //! - starting at any unit of the active player, he can take the next horizontal or vertical 2 blocks, as long as both are currently empty
-//!     (`*` mark possible spots for the unit of `x` marked with `#`)
+//!     (`*` marks possible spots for the unit of `x` marked with `#`)
 //! 
 //! ```txt
 //! ...x..
@@ -27,7 +27,7 @@
 //! 
 //! - or an empty horizontal or vertical block which is 3 steps away,
 //!     as long as the path to the block does not contain a unit owned by this player
-//!     (`*` mark possible spots for the unit of `x` marked with `#`)
+//!     (`*` marks possible spots for the unit of `x` marked with `#`)
 //! 
 //! ```txt
 //! ...o...
