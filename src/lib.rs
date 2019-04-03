@@ -1,7 +1,7 @@
 #![forbid(unsafe_code)]
 
 pub mod alpha_beta;
-pub mod brute;
+mod brute;
 
 use std::time::Duration;
 
