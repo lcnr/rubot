@@ -3,7 +3,7 @@
 //! # Rules
 //! 
 //! - 2 players take turns consisting of up to one action, in case no action is possible the player has to skip this round.
-//! - the players start with one unit in opposite corners.
+//! - the players both start with one exactly one unit.
 //! 
 //! ```txt
 //! .......o
@@ -14,7 +14,7 @@
 //! ```
 //! 
 //! - starting at any unit of the active player, he can take the next horizontal or vertical 2 blocks, as long as both are currently empty
-//!     (`*` mark possible spots for the unit of `x` marked with `#`)
+//!     (`*` marks possible spots for the unit of `x` marked with `#`)
 //! 
 //! ```txt
 //! ...x..
@@ -27,7 +27,7 @@
 //! 
 //! - or an empty horizontal or vertical block which is 3 steps away,
 //!     as long as the path to the block does not contain a unit owned by this player
-//!     (`*` mark possible spots for the unit of `x` marked with `#`)
+//!     (`*` marks possible spots for the unit of `x` marked with `#`)
 //! 
 //! ```txt
 //! ...o...
@@ -398,8 +398,9 @@ fn main() {
                 }
             }
             Piece::O => {
-                let mov = opponent.select(&game, Duration::from_secs(1)).unwrap();
-                game.make_move(mov).unwrap();
+                if let Some(mov) = opponent.select(&game, Duration::from_secs(1)) {
+                    game.make_move(mov).unwrap();
+                }
             }
         }
     }
@@ -434,6 +435,21 @@ impl rubot::Game for Game {
         match player {
             Piece::X => self.pieces().0 as i32 - self.pieces().1 as i32,
             Piece::O => self.pieces().1 as i32 - self.pieces().0 as i32
+        }
+    }
+
+    fn look_ahead(&self, action: &Self::Action, player: &Self::Player) -> Self::Fitness {
+        let value = match player {
+            Piece::X => self.pieces().0 as i32 - self.pieces().1 as i32,
+            Piece::O => self.pieces().1 as i32 - self.pieces().0 as i32
+        };
+
+        let step = if let Move::Long(_, _) = action { 1 } else { 2 };
+        if self.current_piece() != *player {
+            value + step
+        }
+        else {
+            value - step
         }
     }
 }
