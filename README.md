@@ -9,8 +9,15 @@ If this is not the case for your project, please create an issue on github.
 
 To run the examples, download the repository and run `cargo run --example <example name>`.
 
-- `tic-tac-toe`: A port of [Sunjay's wonderful tic-tac-toe implementation], adding and using `rubot` required about 40 loc.
+- `tic-tac-toe`: A port of [Sunjay's wonderful tic-tac-toe implementation][sunjay], adding and using `rubot` required about 40 loc.
 - `oko`: An original game inspired by [Dots and Boxes] and tic-tac-toe.
+
+## Supported games
+
+While `rubot` tries to be usable with as many different kinds of games as possible, there are some limitations
+which may or may not be lifted in the future.
+
+`rubot` currently requires the game to be deterministic. This prevents games where the player is missing information, for example [fog of war][fow] or simultaneous actions, which can be found in games like `Rock Paper Scissors`.
 
 ## TODO
 
@@ -18,8 +25,10 @@ To run the examples, download the repository and run `cargo run --example <examp
 - tests
 - improve `alpha_beta::Bot`
 - publish on `crates.io`
+- allow for non deterministic games
 
 
 [Stockfish]:https://www.chessprogramming.org/Stockfish
-[Sunjay's wonderful tic-tac-toe implementation]: https://github.com/sunjay/tic-tac-toe.git
+[sunjay]: https://github.com/sunjay/tic-tac-toe.git
 [Dots and Boxes]:https://en.wikipedia.org/wiki/Dots_and_Boxes
+[fow]: https://en.wikipedia.org/wiki/Fog_of_war#In_video_games
