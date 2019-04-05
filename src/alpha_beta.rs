@@ -1,68 +1,115 @@
 use crate::{Game, GameBot};
 
-use std::cmp::{Ord, Ordering};
+use std::cmp::{self, Ord, Ordering};
 use std::time::{Duration, Instant};
+use std::mem;
 
 pub struct Bot<T: Game> {
     player: T::Player,
 }
 
-struct Meta {
-    start: Instant,
-    duration: Duration,
-    discovered: bool,
+struct OutOfTimeError;
+
+enum MiniMax<T: Game> {
+    /// No new elements were found in this branch
+    Terminated(Branch<T>),
+    /// New elements were found
+    Open(Branch<T>),
+    /// There are no possible actions for this state
+    DeadEnd,
+    
+}
+
+enum Branch<T: Game> {
+    /// `actual_fitness <= fitness`
+    Worse(T::Fitness),
+    /// `actual_fitness >= fitness`
+    Better(T::Fitness),
+    /// `actual_fitness == fitness`
+    Equal(T::Fitness)
 }
 
 impl<T: Game> GameBot<T> for Bot<T> {
     fn select(&mut self, state: &T, duration: Duration) -> Option<T::Action> {
-        let start = Instant::now();
+        let end_time = Instant::now() + duration;
 
         let (active, actions) = state.actions(&self.player);
         if !active { return None }
 
         let mut actions = actions.into_iter().collect::<Vec<_>>();
+        if actions.is_empty() { return None }
         actions.sort_by_cached_key(|a| state.look_ahead(&a, &self.player));
-        let last = actions.len() - 1;
         
+        // the best action which already terminated
+        let mut terminated: Option<(T::Action, T::Fitness)> = None;
+        let mut best_fitness: Option<T::Fitness> = None;
         for depth in 1.. {
-            let mut discovered = false;
-            let mut best_fitness = None;
-            let mut best_index = last;
-            for (idx, ref action) in actions.iter_mut().enumerate().rev() {
-                if start.elapsed() > duration {
+            for action in mem::replace(&mut actions, Vec::new()).into_iter().rev() {
+                if Instant::now() > end_time  {
+                    if actions.is_empty() { 
+                        actions.push(action) 
+                    }
                     break;
                 }
 
-                let mut meta = Meta {
-                    start,
-                    duration,
-                    discovered: false
-                };
                 
-
+                
                 let mut state = state.clone();
                 let fitness = state.execute(&action, &self.player);
-                let fitness = self.minimax(state, depth, best_fitness, None, &mut meta).unwrap_or(fitness);
-                if meta.discovered {
-                    discovered = true;
-
-                    if let Ordering::Less = best_fitness.map_or(Ordering::Less, |best| best.cmp(&fitness)) {
-                        best_fitness = Some(fitness);
-                        best_index = idx;
+                match self.minimax(state, depth - 1, best_fitness.filter(|_| !actions.is_empty()), None, end_time) {
+                    // if the time is over, return the current best element or the best element of the previous depth
+                    Err(OutOfTimeError) => {
+                        if actions.is_empty() { actions.push(action) }
+                        break;
+                    },
+                    Ok(MiniMax::DeadEnd) => {
+                        if let Ordering::Less = terminated.as_ref().map_or(Ordering::Less, |(_action, best_term)| best_term.cmp(&fitness)) {
+                            terminated = Some((action, fitness));
+                        }
                     }
+                    Ok(MiniMax::Terminated(Branch::Equal(fitness))) => {
+                        if let Ordering::Less = terminated.as_ref().map_or(Ordering::Less, |(_action, best_term)| best_term.cmp(&fitness)) {   
+                            terminated = Some((action, fitness));
+                        }
+                    },
+                    Ok(MiniMax::Terminated(Branch::Worse(_))) |
+                    Ok(MiniMax::Open(Branch::Worse(_))) => {
+                        assert!(!actions.is_empty());
+                        let len = actions.len();
+                        actions.insert(len - 1, action);
+                    }
+                    Ok(MiniMax::Open(Branch::Equal(fitness))) => {
+                        actions.push(action);
+                        best_fitness = Some(fitness);
+                    }
+                    Ok(MiniMax::Terminated(Branch::Better(_))) | 
+                    Ok(MiniMax::Open(Branch::Better(_))) => unreachable!("beta cutoff at highest depth"),
                 }
             }
-            actions.swap(best_index, last);
 
-            println!("{:?}", actions);
-
-            if start.elapsed() > duration || !discovered {
-                println!("Maximum depth: {}", depth);
+            if Instant::now() > end_time || actions.is_empty() {
+                best_fitness = None;
                 break;
             }
         }
-        actions.pop()
+        
+        if let Some((terminated_action, terminated_fitness)) = terminated {
+            if let Ordering::Less = best_fitness.map_or(Ordering::Less, |best_fitness| best_fitness.cmp(&terminated_fitness)) {
+                Some(terminated_action)
+            }
+            else {
+                assert!(!actions.is_empty());
+                actions.pop()
+            }
+        }
+        else {
+            actions.pop()
+        }
     }
+}
+
+fn cutoff<T: Ord>(alpha: Option<T>, beta: Option<T>) -> bool {
+    alpha.map_or(false, |alpha| beta.map_or(false, |beta| alpha >= beta))
 }
 
 impl<T: Game> Bot<T> {
@@ -71,52 +118,147 @@ impl<T: Game> Bot<T> {
             player
         }
     }
-    fn minimax(&mut self, state: T, depth: u32, mut alpha: Option<T::Fitness>, mut beta: Option<T::Fitness>, meta: &mut Meta) -> Option<T::Fitness> {
-        if depth == 0 {
-            meta.discovered = true;
-            None
+    
+    fn minimax(
+        &mut self, 
+        state: T, 
+        depth: u32, 
+        mut alpha: Option<T::Fitness>, mut beta: Option<T::Fitness>, 
+        end_time: Instant
+    ) -> Result<MiniMax<T>, OutOfTimeError> {
+        if Instant::now() > end_time {
+            Err(OutOfTimeError)
         }
-        else if meta.start.elapsed() > meta.duration {
-            None
+        else if depth == 0 {
+            let (active, actions) = state.actions(&self.player);
+            let selected = if active {
+                actions.into_iter().map(|action| state.look_ahead(&action, &self.player)).max()
+            }
+            else {
+                actions.into_iter().map(|action| state.look_ahead(&action, &self.player)).min()
+            };
+
+            Ok(selected.map(|fitness| MiniMax::Open(Branch::Equal(fitness))).unwrap_or(MiniMax::DeadEnd))
         }
         else {
             let (active, actions) = state.actions(&self.player);
-            let mut states: Vec<(T, T::Fitness)> = actions.into_iter().map(|action| {
+            let mut states: Vec<_> = actions.into_iter().map(|action| {
                 let mut state = state.clone();
                 let fitness = state.execute(&action, &self.player);
                 (state, fitness)
             }).collect();
+
+            if states.is_empty() { return Ok(MiniMax::DeadEnd) }
+
             states.sort_unstable_by_key(|(_, fitness)| *fitness);
-            
-            let mut res = None;
-            for (state, mut fitness) in states.into_iter().rev() {
-                fitness = self.minimax(state, depth - 1, alpha, beta, &mut *meta).unwrap_or(fitness);
+
+            let mut terminated = true;
+            let mut result = None;
+            for (state, fitness) in states.into_iter().rev() {
+                match self.minimax(state, depth - 1, alpha, beta, end_time)? {
+                    MiniMax::DeadEnd => {
+                        if active {
+                            alpha = Some(alpha.map_or(fitness, |value| cmp::max(value, fitness)));
+                            result = Some(result.map_or(fitness, |value| cmp::max(value, fitness)));
+                        }
+                        else {
+                            beta = Some(beta.map_or(fitness, |value| cmp::min(value, fitness)));
+                            result = Some(result.map_or(fitness, |value| cmp::min(value, fitness)));
+                        }
+                    },
+                    MiniMax::Terminated(Branch::Equal(fitness)) => {
+                        if active {
+                            alpha = Some(alpha.map_or(fitness, |value| cmp::max(value, fitness)));
+                            result = Some(result.map_or(fitness, |value| cmp::max(value, fitness)));
+                        }
+                        else {
+                            beta = Some(beta.map_or(fitness, |value| cmp::min(value, fitness)));
+                            result = Some(result.map_or(fitness, |value| cmp::min(value, fitness)));
+                        }
+                    },
+                    MiniMax::Terminated(Branch::Better(fitness)) => {
+                        if active {
+                            assert!(alpha.map_or(true, |value| value <= fitness));
+                            alpha = Some(fitness);
+                            assert!(result.map_or(true, |value| value <= fitness));
+                            result = Some(result.map_or(fitness, |value| cmp::max(value, fitness))); 
+                        }
+                        else {
+                            result = Some(result.map_or(fitness, |value| cmp::min(value, fitness)));
+                        }
+                    }
+                    MiniMax::Terminated(Branch::Worse(fitness)) => {
+                        if active {
+                            result = Some(result.map_or(fitness, |value| cmp::max(value, fitness))); 
+                        }
+                        else {
+                            assert!(beta.map_or(true, |value| value >= fitness));
+                            beta = Some(fitness);
+                            assert!(result.map_or(true, |value| value >= fitness));
+                            result = Some(result.map_or(fitness, |value| cmp::min(value, fitness))); 
+                        }
+                    }
+                    MiniMax::Open(Branch::Equal(fitness)) => {
+                        terminated = false;
+
+                        if active {
+                            alpha = Some(alpha.map_or(fitness, |value| cmp::max(value, fitness)));
+                            result = Some(result.map_or(fitness, |value| cmp::max(value, fitness)));
+                        }
+                        else {
+                            beta = Some(beta.map_or(fitness, |value| cmp::min(value, fitness)));
+                            result = Some(result.map_or(fitness, |value| cmp::min(value, fitness)));
+                        }
+                    },
+                    MiniMax::Open(Branch::Better(fitness)) => {
+                        terminated = false;
+                        if active {
+                            assert!(alpha.map_or(true, |value| value <= fitness));
+                            alpha = Some(fitness);
+                            assert!(result.map_or(true, |value| value <= fitness));
+                            result = Some(result.map_or(fitness, |value| cmp::max(value, fitness))); 
+                        }
+                        else {
+                            result = Some(result.map_or(fitness, |value| cmp::min(value, fitness)));
+                        }
+                    }
+                    MiniMax::Open(Branch::Worse(fitness)) => {
+                        terminated = false;
+                        if active {
+                            result = Some(result.map_or(fitness, |value| cmp::max(value, fitness))); 
+                        }
+                        else {
+                            assert!(beta.map_or(true, |value| value >= fitness));
+                            beta = Some(fitness);
+                            assert!(result.map_or(true, |value| value >= fitness));
+                            result = Some(result.map_or(fitness, |value| cmp::min(value, fitness))); 
+                        }
+                    }
+                }
                 
-                if active { 
-                    if let Ordering::Less = alpha.map_or(Ordering::Less, |alpha| alpha.cmp(&fitness)) {
-                        alpha = Some(fitness);
-                    }
-
-                    if let Ordering::Less = res.map_or(Ordering::Less, |res: T::Fitness| res.cmp(&fitness)) {
-                        res = Some(fitness)
-                    }
-                }
-                else {
-                    if let Ordering::Greater = beta.map_or(Ordering::Greater, |beta| beta.cmp(&fitness)) {
-                        beta = Some(fitness);
-                    }
-
-                    if let Ordering::Greater = res.map_or(Ordering::Greater, |res| res.cmp(&fitness)) {
-                        res = Some(fitness)
-                    }
-                }
-
-                if alpha >= beta {
+                if cutoff(alpha, beta) {
                     break;
                 }
             }
-            
-            res
+
+            let branch = match (cutoff(alpha, beta), active) {
+                (true, true) => {
+                    Branch::Better(alpha.unwrap())
+                }
+                (true, false) => {
+                    Branch::Worse(beta.unwrap())  
+                }
+                (false, _) => {
+                    Branch::Equal(result.unwrap())
+                },
+            };
+
+            if terminated {
+                Ok(MiniMax::Terminated(branch))
+            }
+            else {
+                Ok(MiniMax::Open(branch))
+            }
         }
     }
 }
