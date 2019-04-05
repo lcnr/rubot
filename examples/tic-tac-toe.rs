@@ -230,9 +230,9 @@ fn print_tiles(tiles: &Tiles) {
 }
 
 fn main() {
-    let mut game = Game::new();
-    // tic tac toe can easily be completely computed, so no need to limit the depth
     use rubot::{Bot, GameBot};
+
+    let mut game = Game::new();
     let mut opponent = Bot::new(Piece::O);
     while !game.is_finished() {
         print_tiles(game.tiles());
