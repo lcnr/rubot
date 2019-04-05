@@ -55,6 +55,8 @@ use std::time::Duration;
 use rubot::{Bot, GameBot};
 
 mod game {
+    use std::ops::Not;
+
     const BOARD_WIDTH: usize = 5;
     const BOARD_HEIGHT: usize = 7;
 
@@ -64,11 +66,13 @@ mod game {
         O,
     }
 
-    impl Piece {
-        pub fn other(self) -> Piece {
+    impl Not for Piece {
+        type Output = Self;
+
+        fn not(self) -> Self {
             match self {
                 Piece::X => Piece::O,
-                Piece::O => Piece::X,
+                Piece::O => Piece::X
             }
         }
     }
@@ -91,7 +95,7 @@ mod game {
     #[derive(Debug, Clone, Copy, PartialEq)]
     pub enum Move {
         Short((usize, usize), (usize, usize)),
-        Long(usize, usize)
+        Long(usize, usize),
     }
 
     #[derive(Debug, Clone)]
@@ -131,7 +135,7 @@ mod game {
                     self.tiles[a][b] = Some(self.current_piece);
                 }
             }
-            self.current_piece = self.current_piece.other();
+            self.current_piece = !self.current_piece;
             self.generate_actions(false);
             Ok(())
         }
@@ -186,6 +190,7 @@ mod game {
 
             if self.actions.is_empty() {
                 if !skipped {
+                    self.current_piece = !self.current_piece;
                     self.generate_actions(true);
                 }
                     else {

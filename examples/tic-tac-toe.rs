@@ -159,7 +159,7 @@ pub struct InvalidMove(String);
 
 fn prompt_move() -> (usize, usize) {
     loop {
-        print!("Enter move (e.g. 1A): ");
+        print!("Enter move (e.g. A1): ");
         io::stdout().flush().expect("Failed to flush stdout");
         let line = read_line();
         match parse_move(&line) {
@@ -177,18 +177,19 @@ fn parse_move(input: &str) -> Result<(usize, usize), InvalidMove> {
         return Err(InvalidMove(input.to_string()));
     }
 
-    let row = match &input[0..1] {
-        "1" => 0,
-        "2" => 1,
-        "3" => 2,
-        _ => return Err(InvalidMove(input.to_string())),
-    };
 
-    let col = match &input[1..2] {
+    let col = match &input[0..1] {
         "A" | "a" => 0,
         "B" | "b" => 1,
         "C" | "c" => 2,
         invalid => return Err(InvalidMove(invalid.to_string())),
+    };
+
+    let row = match &input[1..2] {
+        "1" => 0,
+        "2" => 1,
+        "3" => 2,
+        _ => return Err(InvalidMove(input.to_string())),
     };
 
     Ok((row, col))
