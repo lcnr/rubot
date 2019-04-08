@@ -187,8 +187,15 @@ impl<T: Game> GameBot<T> for Bot<T> {
                             terminated = Some((action, fitness));
                         }
                     }
-                    Ok(MiniMax::Terminated(_path, Branch::Worse(_)))
-                    | Ok(MiniMax::Open(_path, Branch::Worse(_))) => {
+                    Ok(MiniMax::Terminated(_path, Branch::Worse(_fitness))) => {
+                        // TODO: put on a different stack, only check if best_fitness < _fitness
+                        // after all other paths were finished
+                        
+                        // keep the best action on top of the stack at all times
+                        let len = actions.len();
+                        actions.insert(len - 1, action);
+                    }
+                    Ok(MiniMax::Open(_path, Branch::Worse(_))) => {
                         // keep the best action on top of the stack at all times
                         let len = actions.len();
                         actions.insert(len - 1, action);
