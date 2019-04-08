@@ -210,14 +210,10 @@ impl<T: Game> Bot<T> {
                             alpha = Some(fitness);
                             assert!(result.map_or(true, |value| value <= fitness));
                             result = Some(result.map_or(fitness, |value| cmp::max(value, fitness)));
-                        } else {
-                            result = Some(result.map_or(fitness, |value| cmp::min(value, fitness)));
                         }
                     }
                     MiniMax::Terminated(Branch::Worse(fitness)) => {
-                        if active {
-                            result = Some(result.map_or(fitness, |value| cmp::max(value, fitness)));
-                        } else {
+                        if !active {
                             assert!(beta.map_or(true, |value| value >= fitness));
                             beta = Some(fitness);
                             assert!(result.map_or(true, |value| value >= fitness));
@@ -242,15 +238,11 @@ impl<T: Game> Bot<T> {
                             alpha = Some(fitness);
                             assert!(result.map_or(true, |value| value <= fitness));
                             result = Some(result.map_or(fitness, |value| cmp::max(value, fitness)));
-                        } else {
-                            result = Some(result.map_or(fitness, |value| cmp::min(value, fitness)));
                         }
                     }
                     MiniMax::Open(Branch::Worse(fitness)) => {
                         terminated = false;
-                        if active {
-                            result = Some(result.map_or(fitness, |value| cmp::max(value, fitness)));
-                        } else {
+                        if !active {
                             assert!(beta.map_or(true, |value| value >= fitness));
                             beta = Some(fitness);
                             assert!(result.map_or(true, |value| value >= fitness));
@@ -267,7 +259,11 @@ impl<T: Game> Bot<T> {
             let branch = match (cutoff(alpha, beta), active) {
                 (true, true) => Branch::Better(alpha.unwrap()),
                 (true, false) => Branch::Worse(beta.unwrap()),
-                (false, _) => Branch::Equal(result.unwrap()),
+                (false, _) => result.map(|res| Branch::Equal(res))
+                .unwrap_or_else(|| {
+                    if active { Branch::Worse(alpha.unwrap()) }
+                    else { Branch::Better(beta.unwrap()) }
+                }),
             };
 
             if terminated {
