@@ -8,6 +8,7 @@ mod brute;
 mod tests;
 
 use std::time::Duration;
+use std::cmp::PartialEq;
 
 /// An interface required to interact with [`GameBot`s][bot].
 ///
@@ -75,10 +76,10 @@ use std::time::Duration;
 ///     let mut player_b = Bot::new(false);
 ///     let mut game = Game::new(21, true);
 ///     loop {
-///         game.remove_flags(player_a.select(&game, Duration::from_secs(1)).unwrap());
+///         game.remove_flags(player_a.select(&game, Duration::from_secs(2)).unwrap());
 ///         if game.flags == 0 { break }
 ///
-///         game.remove_flags(player_b.select(&game, Duration::from_secs(1)).unwrap());
+///         game.remove_flags(player_b.select(&game, Duration::from_secs(2)).unwrap());
 ///         if game.flags == 0 { break }
 ///     }
 ///     // in case both players play perfectly, the player who begins should always win
@@ -90,7 +91,7 @@ use std::time::Duration;
 /// [player]: trait.Game.html#associatedtype.player
 pub trait Game: Clone {
     type Player;
-    type Action;
+    type Action: PartialEq;
     type Fitness: Ord + Copy;
     type Actions: IntoIterator<Item = Self::Action>;
 
