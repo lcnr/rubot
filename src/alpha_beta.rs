@@ -28,6 +28,95 @@ enum Branch<T: Game> {
     Equal(T::Fitness),
 }
 
+struct State<T: Game> {
+    alpha: Option<T::Fitness>,
+    beta: Option<T::Fitness>,
+    best_action: Option<(T::Action, T::Fitness)>,
+    terminated: bool,
+    active: bool
+}
+
+impl<T: Game> State<T> {
+    fn new(alpha: Option<T::Fitness>, beta: Option<T::Fitness>, active: bool) -> Self {
+        Self {
+            alpha,
+            beta,
+            best_action: None,
+            terminated: true,
+            active
+        }
+    }
+
+    fn bind_equal(&mut self, fitness: T::Fitness, action: T::Action, terminated: bool) {
+        self.terminated &= terminated;
+        if self.active {
+            self.alpha = Some(self.alpha.map_or(fitness, |value| cmp::max(value, fitness)));
+            self.best_action = Some(if let Some((current_action, current_fitness)) = self.best_action.take() {
+                if current_fitness > fitness {
+                    (current_action, current_fitness)
+                }
+                else { (action, fitness) }
+            }else { (action, fitness) })
+        } else {
+            self.beta = Some(self.beta.map_or(fitness, |value| cmp::min(value, fitness)));
+            self.best_action = Some(if let Some((current_action, current_fitness)) = self.best_action.take() {
+                if current_fitness < fitness {
+                    (current_action, current_fitness)
+                }
+                else { (action, fitness) }
+            } else { (action, fitness) })
+        }
+    }
+
+    fn bind_better(&mut self, fitness: T::Fitness, action: T::Action, terminated: bool) {
+        self.terminated &= terminated;
+        if self.active {
+            debug_assert!(self.alpha.map_or(true, |value| value <= fitness));
+            self.alpha = Some(fitness);
+            debug_assert!(self.best_action.as_ref().map_or(true, |value| value.1 <= fitness));
+            self.best_action = Some((action, fitness));
+        }
+    }
+
+    fn bind_worse(&mut self, fitness: T::Fitness, action: T::Action, terminated: bool) {
+        self.terminated &= terminated;
+        if !self.active {
+            debug_assert!(self.beta.map_or(true, |value| value >= fitness));
+            self.beta = Some(fitness);
+            debug_assert!(self.best_action.as_ref().map_or(true, |value| value.1 >= fitness));
+            self.best_action = Some((action, fitness));
+        }
+    }
+
+    fn is_cutoff(&self) -> bool {
+        if let (Some(ref alpha), Some(ref beta)) = (self.alpha, self.beta) {
+            alpha >= beta 
+        }
+        else {
+            false
+        }
+    }
+
+
+    fn consume(mut self) -> MiniMax<T> {
+        let branch = match (self.is_cutoff(), self.active) {
+            (true, true) => Branch::Better(self.alpha.unwrap()),
+            (true, false) => Branch::Worse(self.beta.unwrap()),
+            (false, _) => self.best_action.take().map(|res| Branch::Equal(res.1))
+            .unwrap_or_else(|| {
+                if self.active { Branch::Worse(self.alpha.unwrap()) }
+                else { Branch::Better(self.beta.unwrap()) }
+            }),
+        };
+
+        if self.terminated {
+            MiniMax::Terminated(branch)
+        } else {
+            MiniMax::Open(branch)
+        }
+    }
+}
+
 impl<T: Game> GameBot<T> for Bot<T> {
     fn select(&mut self, state: &T, duration: Duration) -> Option<T::Action> {
         let end_time = Instant::now() + duration;
@@ -129,10 +218,6 @@ impl<T: Game> GameBot<T> for Bot<T> {
     }
 }
 
-fn cutoff<T: Ord>(alpha: Option<T>, beta: Option<T>) -> bool {
-    alpha.map_or(false, |alpha| beta.map_or(false, |beta| alpha >= beta))
-}
-
 impl<T: Game> Bot<T> {
     pub fn new(player: T::Player) -> Self {
         Self { player }
@@ -142,8 +227,8 @@ impl<T: Game> Bot<T> {
         &mut self,
         state: T,
         depth: u32,
-        mut alpha: Option<T::Fitness>,
-        mut beta: Option<T::Fitness>,
+        alpha: Option<T::Fitness>,
+        beta: Option<T::Fitness>,
         end_time: Instant,
     ) -> Result<MiniMax<T>, OutOfTimeError> {
         if Instant::now() > end_time {
@@ -172,7 +257,7 @@ impl<T: Game> Bot<T> {
                 .map(|action| {
                     let mut state = state.clone();
                     let fitness = state.execute(&action, &self.player);
-                    (state, fitness)
+                    (state, action, fitness)
                 })
                 .collect();
 
@@ -180,97 +265,40 @@ impl<T: Game> Bot<T> {
                 return Ok(MiniMax::DeadEnd);
             }
 
-            states.sort_unstable_by_key(|(_, fitness)| *fitness);
+            let mut state = State::new(alpha, beta, active);
 
-            let mut terminated = true;
-            let mut result = None;
-            for (state, fitness) in states.into_iter().rev() {
-                match self.minimax(state, depth - 1, alpha, beta, end_time)? {
+            states.sort_unstable_by_key(|(_, _,fitness)| *fitness);
+            for (game_state, action, fitness) in states.into_iter().rev() {
+                match self.minimax(game_state, depth - 1, alpha, beta, end_time)? {
                     MiniMax::DeadEnd => {
-                        if active {
-                            alpha = Some(alpha.map_or(fitness, |value| cmp::max(value, fitness)));
-                            result = Some(result.map_or(fitness, |value| cmp::max(value, fitness)));
-                        } else {
-                            beta = Some(beta.map_or(fitness, |value| cmp::min(value, fitness)));
-                            result = Some(result.map_or(fitness, |value| cmp::min(value, fitness)));
-                        }
+                        state.bind_equal(fitness, action, true);
                     }
                     MiniMax::Terminated(Branch::Equal(fitness)) => {
-                        if active {
-                            alpha = Some(alpha.map_or(fitness, |value| cmp::max(value, fitness)));
-                            result = Some(result.map_or(fitness, |value| cmp::max(value, fitness)));
-                        } else {
-                            beta = Some(beta.map_or(fitness, |value| cmp::min(value, fitness)));
-                            result = Some(result.map_or(fitness, |value| cmp::min(value, fitness)));
-                        }
+                        state.bind_equal(fitness, action, true);
                     }
                     MiniMax::Terminated(Branch::Better(fitness)) => {
-                        if active {
-                            assert!(alpha.map_or(true, |value| value <= fitness));
-                            alpha = Some(fitness);
-                            assert!(result.map_or(true, |value| value <= fitness));
-                            result = Some(result.map_or(fitness, |value| cmp::max(value, fitness)));
-                        }
+                        state.bind_better(fitness, action, true);
                     }
                     MiniMax::Terminated(Branch::Worse(fitness)) => {
-                        if !active {
-                            assert!(beta.map_or(true, |value| value >= fitness));
-                            beta = Some(fitness);
-                            assert!(result.map_or(true, |value| value >= fitness));
-                            result = Some(result.map_or(fitness, |value| cmp::min(value, fitness)));
-                        }
+                        state.bind_worse(fitness, action, true);
                     }
                     MiniMax::Open(Branch::Equal(fitness)) => {
-                        terminated = false;
-
-                        if active {
-                            alpha = Some(alpha.map_or(fitness, |value| cmp::max(value, fitness)));
-                            result = Some(result.map_or(fitness, |value| cmp::max(value, fitness)));
-                        } else {
-                            beta = Some(beta.map_or(fitness, |value| cmp::min(value, fitness)));
-                            result = Some(result.map_or(fitness, |value| cmp::min(value, fitness)));
-                        }
+                        state.bind_equal(fitness, action, false);
                     }
                     MiniMax::Open(Branch::Better(fitness)) => {
-                        terminated = false;
-                        if active {
-                            assert!(alpha.map_or(true, |value| value <= fitness));
-                            alpha = Some(fitness);
-                            assert!(result.map_or(true, |value| value <= fitness));
-                            result = Some(result.map_or(fitness, |value| cmp::max(value, fitness)));
-                        }
+                        state.bind_better(fitness, action, false);
                     }
                     MiniMax::Open(Branch::Worse(fitness)) => {
-                        terminated = false;
-                        if !active {
-                            assert!(beta.map_or(true, |value| value >= fitness));
-                            beta = Some(fitness);
-                            assert!(result.map_or(true, |value| value >= fitness));
-                            result = Some(result.map_or(fitness, |value| cmp::min(value, fitness)));
-                        }
+                        state.bind_worse(fitness, action, false);
                     }
                 }
 
-                if cutoff(alpha, beta) {
+                if state.is_cutoff() {
                     break;
                 }
             }
-
-            let branch = match (cutoff(alpha, beta), active) {
-                (true, true) => Branch::Better(alpha.unwrap()),
-                (true, false) => Branch::Worse(beta.unwrap()),
-                (false, _) => result.map(|res| Branch::Equal(res))
-                .unwrap_or_else(|| {
-                    if active { Branch::Worse(alpha.unwrap()) }
-                    else { Branch::Better(beta.unwrap()) }
-                }),
-            };
-
-            if terminated {
-                Ok(MiniMax::Terminated(branch))
-            } else {
-                Ok(MiniMax::Open(branch))
-            }
+            
+            Ok(state.consume())
         }
     }
 }
