@@ -21,9 +21,6 @@ which may or may not be lifted in the future.
 
 ## TODO
 
-- documentation
-- tests
-- improve `alpha_beta::Bot`
 - publish on `crates.io`
 - allow for non deterministic games
 
