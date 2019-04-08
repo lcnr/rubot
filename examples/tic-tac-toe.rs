@@ -311,3 +311,19 @@ impl rubot::Game for Game {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn first_pos() {
+         use rubot::{Bot, GameBot};
+
+        let mut game = Game::new();  
+        game.make_move(0, 0).unwrap();
+
+        let mut opponent = Bot::new(Piece::O);
+        assert_eq!(opponent.select(&game, Duration::from_secs(1)).unwrap(), Action(1, 1));
+    }
+}
