@@ -10,6 +10,7 @@ If this is not the case for your project, please create an issue on github.
 To run the examples, download the repository and run `cargo run --example <example name>`.
 
 - `tic-tac-toe`: A port of [Sunjay's wonderful tic-tac-toe implementation][sunjay], adding and using `rubot` required about 40 loc.
+- `chess`: A chess bot using [shakmaty].
 - `oko`: An original game inspired by [Dots and Boxes] and tic-tac-toe.
 
 ## Supported games
@@ -24,7 +25,7 @@ which may or may not be lifted in the future.
 - publish on `crates.io`
 - allow for non deterministic games
 
-
+[shakmaty]:https://crates.io/crates/shakmaty
 [Stockfish]:https://www.chessprogramming.org/Stockfish
 [sunjay]: https://github.com/sunjay/tic-tac-toe.git
 [Dots and Boxes]:https://en.wikipedia.org/wiki/Dots_and_Boxes
