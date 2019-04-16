@@ -1,6 +1,6 @@
 use crate::{Game, GameBot};
 
-use std::cmp::{self, Ord, Ordering};
+use std::cmp;
 use std::mem;
 use std::time::{Duration, Instant};
 
@@ -30,7 +30,9 @@ struct State<T: Game> {
     best_fitness: Option<T::Fitness>,
     path: Vec<T::Action>,
     terminated: bool,
-    active: bool
+    active: bool,
+    max: Option<T::Fitness>,
+    min: Option<T::Fitness>
 }
 
 impl<T: Game> State<T> {
@@ -41,7 +43,9 @@ impl<T: Game> State<T> {
             best_fitness: None,
             path: Vec::new(),
             terminated: true,
-            active
+            active,
+            max: None,
+            min: None
         }
     }
 
@@ -74,7 +78,9 @@ impl<T: Game> State<T> {
             self.alpha = Some(fitness);
             debug_assert!(self.best_fitness.map_or(true, |value| value <= fitness));
             self.update_best_action(path, action, fitness);
-
+        }
+        else {
+            self.min = Some(self.min.map_or(fitness, |min| cmp::min(fitness, min)));
         }
     }
 
@@ -85,6 +91,9 @@ impl<T: Game> State<T> {
             self.beta = Some(fitness);
             debug_assert!(self.best_fitness.map_or(true, |value| value >= fitness));
             self.update_best_action(path, action, fitness);
+        }
+        else {
+            self.max = Some(self.max.map_or(fitness, |max| cmp::max(fitness, max)));
         }
     }
 
@@ -104,8 +113,8 @@ impl<T: Game> State<T> {
             (true, false) => Branch::Worse(self.beta.unwrap()),
             (false, _) => self.best_fitness.map(|res| Branch::Equal(res))
             .unwrap_or_else(|| {
-                if self.active { Branch::Worse(self.alpha.unwrap()) }
-                else { Branch::Better(self.beta.unwrap()) }
+                if self.active { Branch::Worse(self.max.unwrap()) }
+                else { Branch::Better(self.min.unwrap()) }
             }),
         };
 
@@ -119,10 +128,12 @@ impl<T: Game> State<T> {
 
 pub struct Bot<T: Game> {
     player: T::Player,
+    calls: u32
 }
 
 impl<T: Game> GameBot<T> for Bot<T> {
     fn select(&mut self, state: &T, duration: Duration) -> Option<T::Action> {
+        self.calls = 0;
         let end_time = Instant::now() + duration;
 
         let (active, actions) = state.actions(&self.player);
@@ -137,7 +148,8 @@ impl<T: Game> GameBot<T> for Bot<T> {
         actions.sort_by_cached_key(|a| state.look_ahead(&a, &self.player));
 
         // the best action which already terminated
-        let mut terminated: Option<(T::Action, T::Fitness)> = None;
+        let mut terminated: Option<(T::Fitness, T::Action)> = None;
+        let mut worse_terminated = Vec::new();
         let mut best_path = Vec::new();
         let mut best_fitness: Option<T::Fitness> = None;
         for depth in 1.. {
@@ -156,7 +168,7 @@ impl<T: Game> GameBot<T> for Bot<T> {
                     mem::replace(&mut prev_best_path, Vec::new()),
                     state,
                     depth - 1,
-                    best_fitness.filter(|_| !actions.is_empty()),
+                    best_fitness,
                     None,
                     end_time,
                 ) {
@@ -168,37 +180,24 @@ impl<T: Game> GameBot<T> for Bot<T> {
                         break;
                     }
                     Ok(MiniMax::DeadEnd) => {
-                        if let Ordering::Less = terminated
-                            .as_ref()
-                            .map_or(Ordering::Less, |(_action, best_term)| {
-                                best_term.cmp(&fitness)
-                            })
-                        {
-                            terminated = Some((action, fitness));
+                        if terminated.as_ref().map_or(true, |(f, _a)| f < &fitness) {
+                            terminated = Some((fitness, action));
                         }
                     }
                     Ok(MiniMax::Terminated(_path, Branch::Equal(fitness))) => {
-                        if let Ordering::Less = terminated
-                            .as_ref()
-                            .map_or(Ordering::Less, |(_action, best_term)| {
-                                best_term.cmp(&fitness)
-                            })
-                        {
-                            terminated = Some((action, fitness));
+                        if terminated.as_ref().map_or(true, |(f, _a)| f < &fitness) {
+                            terminated = Some((fitness, action));
                         }
                     }
-                    Ok(MiniMax::Terminated(_path, Branch::Worse(_fitness))) => {
-                        // TODO: put on a different stack, only check if best_fitness < _fitness
-                        // after all other paths were finished
-                        
-                        // keep the best action on top of the stack at all times
-                        let len = actions.len();
-                        actions.insert(len - 1, action);
+                    Ok(MiniMax::Terminated(_path, Branch::Worse(maximum))) => {
+                        if terminated.as_ref().map_or(true, |(f, _a)| f < &maximum) {
+                            worse_terminated.push((fitness, action));
+                        }
                     }
                     Ok(MiniMax::Open(_path, Branch::Worse(_))) => {
                         // keep the best action on top of the stack at all times
                         let len = actions.len();
-                        actions.insert(len - 1, action);
+                        actions.insert(len.saturating_sub(1), action);
                     }
                     Ok(MiniMax::Open(path, Branch::Equal(fitness))) => {
                         actions.push(action);
@@ -212,13 +211,25 @@ impl<T: Game> GameBot<T> for Bot<T> {
                 }
             }
 
-            if Instant::now() > end_time || actions.is_empty() {
-                best_fitness = None;
+            if actions.is_empty() {
+                worse_terminated.sort_by_key(|(f, _a)| *f);
+                actions.extend(
+                mem::replace(&mut worse_terminated, Vec::new())
+                    .into_iter()
+                    .filter(|(max_f, _a)| terminated.as_ref().map_or(true, |(term_f, _a)| term_f < max_f))
+                    .map(|(_f, a)| a));
+            }
+            else {
+                best_fitness = terminated.as_ref().map(|(f, _a)| *f);
+            }
+            
+            if Instant::now() > end_time || actions.is_empty() { 
                 break;
             }
         }
 
-        if let Some((terminated_action, terminated_fitness)) = terminated {
+        println!("calls: {}", self.calls);
+        if let Some((terminated_fitness, terminated_action)) = terminated {
             if best_fitness.map_or(true, |best_fitness| best_fitness <= terminated_fitness) {
                 Some(terminated_action)
             } else {
@@ -234,7 +245,7 @@ impl<T: Game> GameBot<T> for Bot<T> {
 
 impl<T: Game> Bot<T> {
     pub fn new(player: T::Player) -> Self {
-        Self { player }
+        Self { player, calls: 0 }
     }
 
     fn minimax(
@@ -246,6 +257,7 @@ impl<T: Game> Bot<T> {
         beta: Option<T::Fitness>,
         end_time: Instant,
     ) -> Result<MiniMax<T>, OutOfTimeError> {
+        self.calls += 1;
         if Instant::now() > end_time {
             Err(OutOfTimeError)
         } else if depth == 0 {
@@ -256,7 +268,7 @@ impl<T: Game> Bot<T> {
                 actions
                     .into_iter()
                     .map(|action| {
-                        let fitness = game_state.look_ahead(&action, &self.player);
+                        let fitness = game_state.look_ahead(&action, &self.player); 
                         (action, fitness)
                     }).max_by_key(|(_, fitness)| *fitness)
             } else {
@@ -276,6 +288,7 @@ impl<T: Game> Bot<T> {
             let (active, actions) = game_state.actions(&self.player);
             let mut states: Vec<_> = actions
                 .into_iter()
+                .filter(|action| path.last().map_or(true, |path| path != action))
                 .map(|action| {
                     let mut game_state = game_state.clone();
                     let fitness = game_state.execute(&action, &self.player);
@@ -283,18 +296,19 @@ impl<T: Game> Bot<T> {
                 })
                 .collect();
 
-            if states.is_empty() {
-                return Ok(MiniMax::DeadEnd);
-            }
-
-            let mut state = State::new(alpha, beta, active);
-
             states.sort_unstable_by_key(|(_, _,fitness)| *fitness);
             path.pop().map(|action| {
                 let mut game_state = game_state.clone();
                 let fitness = game_state.execute(&action, &self.player);
                 states.push((game_state, action, fitness))
             });
+
+            if states.is_empty() {
+                return Ok(MiniMax::DeadEnd);
+            }
+
+
+            let mut state = State::new(alpha, beta, active);
             for (game_state, action, fitness) in states.into_iter().rev() {
                 match self.minimax(mem::replace(&mut path, Vec::new()), game_state, depth - 1, alpha, beta, end_time)? {
                     MiniMax::DeadEnd => {
