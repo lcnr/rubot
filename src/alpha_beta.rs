@@ -128,12 +128,10 @@ impl<T: Game> State<T> {
 
 pub struct Bot<T: Game> {
     player: T::Player,
-    calls: u32
 }
 
 impl<T: Game> GameBot<T> for Bot<T> {
     fn select(&mut self, state: &T, duration: Duration) -> Option<T::Action> {
-        self.calls = 0;
         let end_time = Instant::now() + duration;
 
         let (active, actions) = state.actions(&self.player);
@@ -228,7 +226,6 @@ impl<T: Game> GameBot<T> for Bot<T> {
             }
         }
 
-        println!("calls: {}", self.calls);
         if let Some((terminated_fitness, terminated_action)) = terminated {
             if best_fitness.map_or(true, |best_fitness| best_fitness <= terminated_fitness) {
                 Some(terminated_action)
@@ -245,7 +242,7 @@ impl<T: Game> GameBot<T> for Bot<T> {
 
 impl<T: Game> Bot<T> {
     pub fn new(player: T::Player) -> Self {
-        Self { player, calls: 0 }
+        Self { player }
     }
 
     fn minimax(
@@ -257,7 +254,6 @@ impl<T: Game> Bot<T> {
         beta: Option<T::Fitness>,
         end_time: Instant,
     ) -> Result<MiniMax<T>, OutOfTimeError> {
-        self.calls += 1;
         if Instant::now() > end_time {
             Err(OutOfTimeError)
         } else if depth == 0 {
