@@ -4,10 +4,17 @@ version = "0.1.0"
 authors = ["lcnr/Bastian Kauschke <bastian_kauschke@hotmail.de>"]
 edition = "2018"
 
+[dev-dependencies]
+shakmaty = "0.14"
+
 [[example]]
 name = "tic-tac-toe"
 test = true
 
 [[example]]
 name = "oko"
+test = true
+
+[[example]]
+name = "chess"
 test = true
