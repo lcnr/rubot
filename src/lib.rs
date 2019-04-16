@@ -1,5 +1,18 @@
 #![forbid(unsafe_code)]
-
+//! An easily reusable game bot for deterministic games.
+//! 
+//! To use this bot it is required to implement the trait [`Game`][game].
+//! For more details, look at the trait documentation or visit the [examples directory][ex].
+//! 
+//! While this crate will probably have many different kind of bots, there is currently only one: [`alpha_beta`][ab].
+//! 
+//! This bot uses an optimized version of [alpha beta pruning][ab_wiki] with [iterative deepening][id]. 
+//! 
+//! [id]:https://en.wikipedia.org/wiki/Iterative_deepening_depth-first_search
+//! [ab_wiki]:https://en.wikipedia.org/wiki/Alpha%E2%80%93beta_pruning
+//! [ab]:alpha_beta/struct.Bot.html
+//! [ex]:https://github.com/lcnr/rubot/tree/master/examples
+//! [game]:trait.Game.html
 pub mod alpha_beta;
 
 #[allow(unused)]
@@ -37,10 +50,6 @@ use std::cmp::PartialEq;
 /// type Player = bool;
 ///
 /// impl Game {
-///     fn new(flags: u32, starting_player: Player) -> Self {
-///         Game { flags, active_player: starting_player }
-///     }
-///
 ///     fn remove_flags(&mut self, flags: u32) {
 ///         self.flags -= flags;
 ///         self.active_player = !self.active_player;
@@ -74,7 +83,7 @@ use std::cmp::PartialEq;
 ///     use rubot::{Bot, GameBot};
 ///     let mut player_a = Bot::new(true);
 ///     let mut player_b = Bot::new(false);
-///     let mut game = Game::new(21, true);
+///     let mut game = Game { flags: 21, active_player: true };
 ///     loop {
 ///         game.remove_flags(player_a.select(&game, Duration::from_secs(2)).unwrap());
 ///         if game.flags == 0 { break }
@@ -136,7 +145,7 @@ pub trait Game: Clone {
     }
 }
 
-/// An interface for dealing with game bots. For a more detailed explanation, please see the individual implementations
+/// An interface for dealing with game bots. To learn how the bots currently work, please visit the individual implementations.
 pub trait GameBot<T: Game> {
     /// Returns a chosen action based on the given game state.
     ///
@@ -145,5 +154,4 @@ pub trait GameBot<T: Game> {
     fn select(&mut self, state: &T, duration: Duration) -> Option<T::Action>;
 }
 
-/// The currently recommended game bot, the actual implementation used is bound to change during development
-pub use alpha_beta::Bot;
+pub use alpha_beta::Bot as Bot;

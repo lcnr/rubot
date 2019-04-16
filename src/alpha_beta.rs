@@ -1,3 +1,5 @@
+/// A game bot using alpha beta pruning
+
 use crate::{Game, GameBot};
 
 use std::cmp;
@@ -126,6 +128,11 @@ impl<T: Game> State<T> {
     }
 }
 
+/// A game bot which analyses its moves using iterative deepening. In case [`select`][sel] terminates
+/// after less than `duration`, the result is always the best possible move. While this bot does cache some data
+/// during computation, it does not require a lot of memory and does not store anything between different [`select`] calls.
+/// 
+/// [sel]:trait.GameBot.html#tymethod.select
 pub struct Bot<T: Game> {
     player: T::Player,
 }
@@ -241,6 +248,7 @@ impl<T: Game> GameBot<T> for Bot<T> {
 }
 
 impl<T: Game> Bot<T> {
+    /// Creates a new `Bot` for the given `player`. 
     pub fn new(player: T::Player) -> Self {
         Self { player }
     }
