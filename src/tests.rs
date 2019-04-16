@@ -154,8 +154,8 @@ const PREMATURE_TERMINATION: Node = Node::new(true, 0).children(&[
     ])
 ]);
 
-/// Removing a branch which seems to terminate can be dangerous in case the reason that no deeper nodes are
-/// visited is a cutoff. This test checks this by having a beta cutoff at [2][0]. In case the branch
+/// Removing a branch which seems to terminate can be dangerous in case the reason, that no deeper nodes are
+/// visited, is a cutoff. This test checks this by having a beta cutoff at [2][0]. In case the branch
 /// gets stored as having a fitness of 4, instead of only having a fitness of **at most** 4,
 /// [2] ends up getting preferred over [1], even though the actual fitness values are 2 and 3 respectively.
 /// 
