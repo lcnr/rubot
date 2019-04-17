@@ -33,8 +33,8 @@ struct State<T: Game> {
     path: Vec<T::Action>,
     terminated: bool,
     active: bool,
-    max: Option<T::Fitness>,
-    min: Option<T::Fitness>,
+    /// this is either less than alpha or more than beta, used if all actions are *undesirable*
+    edge_case: Option<T::Fitness>,
 }
 
 impl<T: Game> State<T> {
@@ -46,8 +46,7 @@ impl<T: Game> State<T> {
             path: Vec::new(),
             terminated: true,
             active,
-            max: None,
-            min: None,
+            edge_case: None,
         }
     }
 
@@ -91,8 +90,8 @@ impl<T: Game> State<T> {
             self.alpha = Some(fitness);
             debug_assert!(self.best_fitness.map_or(true, |value| value <= fitness));
             self.update_best_action(path, action, fitness);
-        } else {
-            self.min = Some(self.min.map_or(fitness, |min| cmp::min(fitness, min)));
+        } else if self.best_fitness.is_none() {
+            self.edge_case = Some(self.edge_case.map_or(fitness, |min| cmp::min(fitness, min)));
         }
     }
 
@@ -109,8 +108,8 @@ impl<T: Game> State<T> {
             self.beta = Some(fitness);
             debug_assert!(self.best_fitness.map_or(true, |value| value >= fitness));
             self.update_best_action(path, action, fitness);
-        } else {
-            self.max = Some(self.max.map_or(fitness, |max| cmp::max(fitness, max)));
+        } else if self.best_fitness.is_none() {
+            self.edge_case = Some(self.edge_case.map_or(fitness, |max| cmp::max(fitness, max)));
         }
     }
 
@@ -131,9 +130,9 @@ impl<T: Game> State<T> {
                 .map(|res| Branch::Equal(res))
                 .unwrap_or_else(|| {
                     if self.active {
-                        Branch::Worse(self.max.unwrap())
+                        Branch::Worse(self.edge_case.unwrap())
                     } else {
-                        Branch::Better(self.min.unwrap())
+                        Branch::Better(self.edge_case.unwrap())
                     }
                 }),
         };
