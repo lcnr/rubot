@@ -1,13 +1,13 @@
 #![forbid(unsafe_code)]
 //! An easily reusable game bot for deterministic games.
-//! 
+//!
 //! It is required to implement the trait [`Game`][game] to use this crate.
 //! For more details, look at the [trait documentation][game] or visit the [examples directory][ex].
-//! 
+//!
 //! While this crate will probably have many different kind of bots in the future, there is currently only one: [`alpha_beta`][ab].
-//! 
-//! This bot uses an optimized version of [alpha beta pruning][ab_wiki] with [iterative deepening][id]. 
-//! 
+//!
+//! This bot uses an optimized version of [alpha beta pruning][ab_wiki] with [iterative deepening][id].
+//!
 //! [id]:https://en.wikipedia.org/wiki/Iterative_deepening_depth-first_search
 //! [ab_wiki]:https://en.wikipedia.org/wiki/Alpha%E2%80%93beta_pruning
 //! [ab]:alpha_beta/struct.Bot.html
@@ -20,8 +20,8 @@ mod brute;
 #[cfg(test)]
 mod tests;
 
-use std::time::Duration;
 use std::cmp::PartialEq;
+use std::time::Duration;
 
 /// An interface required to interact with [`GameBot`s][bot].
 ///
@@ -154,4 +154,4 @@ pub trait GameBot<T: Game> {
     fn select(&mut self, state: &T, duration: Duration) -> Option<T::Action>;
 }
 
-pub use alpha_beta::Bot as Bot;
+pub use alpha_beta::Bot;

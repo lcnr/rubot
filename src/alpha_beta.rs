@@ -34,7 +34,7 @@ struct State<T: Game> {
     terminated: bool,
     active: bool,
     max: Option<T::Fitness>,
-    min: Option<T::Fitness>
+    min: Option<T::Fitness>,
 }
 
 impl<T: Game> State<T> {
@@ -47,10 +47,9 @@ impl<T: Game> State<T> {
             terminated: true,
             active,
             max: None,
-            min: None
+            min: None,
         }
     }
-
 
     fn update_best_action(&mut self, path: Vec<T::Action>, action: T::Action, fitness: T::Fitness) {
         self.path = path;
@@ -58,7 +57,13 @@ impl<T: Game> State<T> {
         self.best_fitness = Some(fitness)
     }
 
-    fn bind_equal(&mut self, path: Vec<T::Action>, fitness: T::Fitness, action: T::Action, terminated: bool) {
+    fn bind_equal(
+        &mut self,
+        path: Vec<T::Action>,
+        fitness: T::Fitness,
+        action: T::Action,
+        terminated: bool,
+    ) {
         self.terminated &= terminated;
         if self.active {
             self.alpha = Some(self.alpha.map_or(fitness, |value| cmp::max(value, fitness)));
@@ -73,51 +78,64 @@ impl<T: Game> State<T> {
         }
     }
 
-    fn bind_better(&mut self, path: Vec<T::Action>, fitness: T::Fitness, action: T::Action, terminated: bool) {
+    fn bind_better(
+        &mut self,
+        path: Vec<T::Action>,
+        fitness: T::Fitness,
+        action: T::Action,
+        terminated: bool,
+    ) {
         self.terminated &= terminated;
         if self.active {
             debug_assert!(self.alpha.map_or(true, |value| value <= fitness));
             self.alpha = Some(fitness);
             debug_assert!(self.best_fitness.map_or(true, |value| value <= fitness));
             self.update_best_action(path, action, fitness);
-        }
-        else {
+        } else {
             self.min = Some(self.min.map_or(fitness, |min| cmp::min(fitness, min)));
         }
     }
 
-    fn bind_worse(&mut self, path: Vec<T::Action>, fitness: T::Fitness, action: T::Action, terminated: bool) {
+    fn bind_worse(
+        &mut self,
+        path: Vec<T::Action>,
+        fitness: T::Fitness,
+        action: T::Action,
+        terminated: bool,
+    ) {
         self.terminated &= terminated;
         if !self.active {
             debug_assert!(self.beta.map_or(true, |value| value >= fitness));
             self.beta = Some(fitness);
             debug_assert!(self.best_fitness.map_or(true, |value| value >= fitness));
             self.update_best_action(path, action, fitness);
-        }
-        else {
+        } else {
             self.max = Some(self.max.map_or(fitness, |max| cmp::max(fitness, max)));
         }
     }
 
     fn is_cutoff(&self) -> bool {
         if let (Some(ref alpha), Some(ref beta)) = (self.alpha, self.beta) {
-            alpha >= beta 
-        }
-        else {
+            alpha >= beta
+        } else {
             false
         }
     }
-
 
     fn consume(self) -> MiniMax<T> {
         let branch = match (self.is_cutoff(), self.active) {
             (true, true) => Branch::Better(self.alpha.unwrap()),
             (true, false) => Branch::Worse(self.beta.unwrap()),
-            (false, _) => self.best_fitness.map(|res| Branch::Equal(res))
-            .unwrap_or_else(|| {
-                if self.active { Branch::Worse(self.max.unwrap()) }
-                else { Branch::Better(self.min.unwrap()) }
-            }),
+            (false, _) => self
+                .best_fitness
+                .map(|res| Branch::Equal(res))
+                .unwrap_or_else(|| {
+                    if self.active {
+                        Branch::Worse(self.max.unwrap())
+                    } else {
+                        Branch::Better(self.min.unwrap())
+                    }
+                }),
         };
 
         if self.terminated {
@@ -131,7 +149,7 @@ impl<T: Game> State<T> {
 /// A game bot which analyses its moves using alpha beta pruning with iterative deepening. In case [`select`][sel] terminates
 /// after less than `duration`, the result is always the best possible move. While this bot does cache some data
 /// during computation, it does not require a lot of memory and does not store anything between different [`select`][sel] calls.
-/// 
+///
 /// [sel]:trait.GameBot.html#tymethod.select
 pub struct Bot<T: Game> {
     player: T::Player,
@@ -209,9 +227,9 @@ impl<T: Game> GameBot<T> for Bot<T> {
                         best_fitness = Some(fitness);
                         best_path = path;
                     }
-                    Ok(MiniMax::Terminated(_path,Branch::Better(_)))
+                    Ok(MiniMax::Terminated(_path, Branch::Better(_)))
                     | Ok(MiniMax::Open(_path, Branch::Better(_))) => {
-                        unreachable!("beta cutoff at highest depth")
+                        unreachable!("beta cutoff at highest depth");
                     }
                 }
             }
@@ -219,16 +237,20 @@ impl<T: Game> GameBot<T> for Bot<T> {
             if actions.is_empty() {
                 worse_terminated.sort_by_key(|(f, _a)| *f);
                 actions.extend(
-                mem::replace(&mut worse_terminated, Vec::new())
-                    .into_iter()
-                    .filter(|(max_f, _a)| terminated.as_ref().map_or(true, |(term_f, _a)| term_f < max_f))
-                    .map(|(_f, a)| a));
-            }
-            else {
+                    mem::replace(&mut worse_terminated, Vec::new())
+                        .into_iter()
+                        .filter(|(max_f, _a)| {
+                            terminated
+                                .as_ref()
+                                .map_or(true, |(term_f, _a)| term_f < max_f)
+                        })
+                        .map(|(_f, a)| a),
+                );
+            } else {
                 best_fitness = terminated.as_ref().map(|(f, _a)| *f);
             }
-            
-            if Instant::now() > end_time || actions.is_empty() { 
+
+            if Instant::now() > end_time || actions.is_empty() {
                 break;
             }
         }
@@ -248,7 +270,7 @@ impl<T: Game> GameBot<T> for Bot<T> {
 }
 
 impl<T: Game> Bot<T> {
-    /// Creates a new `Bot` for the given `player`. 
+    /// Creates a new `Bot` for the given `player`.
     pub fn new(player: T::Player) -> Self {
         Self { player }
     }
@@ -265,16 +287,20 @@ impl<T: Game> Bot<T> {
         if Instant::now() > end_time {
             Err(OutOfTimeError)
         } else if depth == 0 {
-            debug_assert!(path.is_empty(), "The previous search should not have reached this deep");
+            debug_assert!(
+                path.is_empty(),
+                "The previous search should not have reached this deep"
+            );
 
             let (active, actions) = game_state.actions(&self.player);
             let selected = if active {
                 actions
                     .into_iter()
                     .map(|action| {
-                        let fitness = game_state.look_ahead(&action, &self.player); 
+                        let fitness = game_state.look_ahead(&action, &self.player);
                         (action, fitness)
-                    }).max_by_key(|(_, fitness)| *fitness)
+                    })
+                    .max_by_key(|(_, fitness)| *fitness)
             } else {
                 actions
                     .into_iter()
@@ -300,7 +326,7 @@ impl<T: Game> Bot<T> {
                 })
                 .collect();
 
-            states.sort_unstable_by_key(|(_, _,fitness)| *fitness);
+            states.sort_unstable_by_key(|(_, _, fitness)| *fitness);
             path.pop().map(|action| {
                 let mut game_state = game_state.clone();
                 let fitness = game_state.execute(&action, &self.player);
@@ -311,10 +337,16 @@ impl<T: Game> Bot<T> {
                 return Ok(MiniMax::DeadEnd);
             }
 
-
             let mut state = State::new(alpha, beta, active);
             for (game_state, action, fitness) in states.into_iter().rev() {
-                match self.minimax(mem::replace(&mut path, Vec::new()), game_state, depth - 1, alpha, beta, end_time)? {
+                match self.minimax(
+                    mem::replace(&mut path, Vec::new()),
+                    game_state,
+                    depth - 1,
+                    alpha,
+                    beta,
+                    end_time,
+                )? {
                     MiniMax::DeadEnd => {
                         state.bind_equal(Vec::new(), fitness, action, true);
                     }
@@ -342,7 +374,7 @@ impl<T: Game> Bot<T> {
                     break;
                 }
             }
-            
+
             Ok(state.consume())
         }
     }

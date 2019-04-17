@@ -1,15 +1,15 @@
 use crate::{Game, GameBot};
 
+use std::fmt::{self, Debug, Formatter};
 use std::ops::Range;
 use std::time::Duration;
-use std::fmt::{self, Debug, Formatter};
 
 #[derive(Clone, PartialEq, Eq)]
 struct Node {
     player: bool,
     // always from the perspective of the tested player
     fitness: u32,
-    children: &'static [Node]
+    children: &'static [Node],
 }
 
 impl Debug for Node {
@@ -25,7 +25,7 @@ impl Game for Node {
     type Player = bool;
     type Action = usize;
     type Fitness = u32;
-    type Actions= Range<usize>;
+    type Actions = Range<usize>;
 
     fn actions(&self, player: &Self::Player) -> (bool, Self::Actions) {
         (*player == self.player, 0..self.children.len())
@@ -48,22 +48,17 @@ impl Node {
         Self {
             player,
             fitness,
-            children: EMPTY_ARR
+            children: EMPTY_ARR,
         }
     }
 
     const fn children(self, children: &'static [Node]) -> Self {
-        Self {
-            children,
-            ..self
-        }
+        Self { children, ..self }
     }
 }
 
 fn bots() -> Vec<Box<dyn GameBot<Node>>> {
-    vec![
-        Box::new(crate::Bot::new(true)),
-    ]
+    vec![Box::new(crate::Bot::new(true))]
 }
 
 const EMPTY: Node = Node::new(true, 0);
@@ -104,7 +99,10 @@ const DIFFERENT_DEPTHS: Node = Node::new(true, 0).children(&[
 fn different_depths() {
     for mut bot in bots() {
         // Some(1) to love
-        assert_eq!(bot.select(&DIFFERENT_DEPTHS, Duration::from_secs(1)), Some(1));
+        assert_eq!(
+            bot.select(&DIFFERENT_DEPTHS, Duration::from_secs(1)),
+            Some(1)
+        );
     }
 }
 
@@ -158,11 +156,14 @@ const PREMATURE_TERMINATION: Node = Node::new(true, 0).children(&[
 /// visited, is a cutoff. This test checks this by having a beta cutoff at [2][0]. In case the branch
 /// gets stored as having a fitness of 4, instead of only having a fitness of **at most** 4,
 /// [2] ends up getting preferred over [1], even though the actual fitness values are 2 and 3 respectively.
-/// 
+///
 /// Note: [0] is a deep branch with only bad options to prevent another bug from interfering. <3
 #[test]
 fn premature_termination() {
     for mut bot in bots() {
-        assert_eq!(bot.select(&PREMATURE_TERMINATION, Duration::from_secs(1)), Some(1));
+        assert_eq!(
+            bot.select(&PREMATURE_TERMINATION, Duration::from_secs(1)),
+            Some(1)
+        );
     }
 }

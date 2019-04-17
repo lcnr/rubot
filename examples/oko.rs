@@ -1,10 +1,10 @@
 //! A game I created while I was still in school.
-//! 
+//!
 //! # Rules
-//! 
+//!
 //! - 2 players take turns consisting of up to one action, in case no action is possible the player has to skip this round.
 //! - the players both start with one exactly one unit.
-//! 
+//!
 //! ```txt
 //! .......o
 //! ........
@@ -12,10 +12,10 @@
 //! ........
 //! x.......
 //! ```
-//! 
+//!
 //! - starting at any unit of the active player, he can take the next horizontal or vertical 2 blocks, as long as both are currently empty
 //!     (`*` marks possible spots for the unit of `x` marked with `#`)
-//! 
+//!
 //! ```txt
 //! ...x..
 //! .....o
@@ -24,11 +24,11 @@
 //! ...*..
 //! ......
 //! ```
-//! 
+//!
 //! - or an empty horizontal or vertical block which is 3 steps away,
 //!     as long as the path to the block does not contain a unit owned by this player
 //!     (`*` marks possible spots for the unit of `x` marked with `#`)
-//! 
+//!
 //! ```txt
 //! ...o...
 //! .......
@@ -40,13 +40,13 @@
 //! ```
 //! - once both players are unable to do anything, the player with more units wins
 //!     (`x` wins this game with 7 to 5)
-//! 
+//!
 //! ```txt
 //! oxxo
 //! oxxo
 //! xxxo
 //! ```
-//! 
+//!
 //! - the size and layout of the board is unspecified
 use std::io::{self, Write};
 use std::process;
@@ -72,7 +72,7 @@ mod game {
         fn not(self) -> Self {
             match self {
                 Piece::X => Piece::O,
-                Piece::O => Piece::X
+                Piece::O => Piece::X,
             }
         }
     }
@@ -91,7 +91,7 @@ mod game {
     pub enum MoveError {
         InvalidMove,
     }
-    
+
     #[derive(Debug, Clone, Copy, PartialEq)]
     pub enum Move {
         Short((usize, usize), (usize, usize)),
@@ -125,7 +125,7 @@ mod game {
             if !self.actions.contains(&mov) {
                 return Err(MoveError::InvalidMove);
             }
-            
+
             match mov {
                 Move::Short((a, b), (c, d)) => {
                     self.tiles[a][b] = Some(self.current_piece);
@@ -151,37 +151,62 @@ mod game {
                             macro_rules! is_empty {
                                 ($x:expr, $y:expr) => {
                                     self.tile($x, $y).is_none()
-                                }
+                                };
                             }
                             macro_rules! maybe_enemy {
                                 ($x:expr, $y:expr) => {
-                                    self.tile($x, $y).map_or(true, |p| p != self.current_piece())
-                                }
+                                    self.tile($x, $y)
+                                        .map_or(true, |p| p != self.current_piece())
+                                };
                             }
                             macro_rules! short {
                                 (($a:expr, $b:expr), ($x:expr, $y:expr)) => {
-                                    if is_inbound($a, $b) && is_inbound($x, $y) 
-                                    && is_empty!($a, $b) && is_empty!($x, $y) {
+                                    if is_inbound($a, $b)
+                                        && is_inbound($x, $y)
+                                        && is_empty!($a, $b)
+                                        && is_empty!($x, $y)
+                                    {
                                         self.actions.push(Move::Short(($a, $b), ($x, $y)));
                                     };
-                                }
+                                };
                             }
                             macro_rules! long {
                                 (($a:expr, $b:expr), ($c:expr, $d:expr), ($x:expr, $y:expr)) => {
-                                    if is_inbound($a, $b) && is_inbound($c, $d) && is_inbound($x, $y) 
-                                    && maybe_enemy!($a, $b) && maybe_enemy!($c, $d) && is_empty!($x, $y) {
+                                    if is_inbound($a, $b)
+                                        && is_inbound($c, $d)
+                                        && is_inbound($x, $y)
+                                        && maybe_enemy!($a, $b)
+                                        && maybe_enemy!($c, $d)
+                                        && is_empty!($x, $y)
+                                    {
                                         self.actions.push(Move::Long($x, $y));
                                     };
-                                }
+                                };
                             }
                             short!((x.wrapping_add(1), y), (x.wrapping_add(2), y));
-                            long!((x.wrapping_add(1), y), (x.wrapping_add(2), y), (x.wrapping_add(3), y));
+                            long!(
+                                (x.wrapping_add(1), y),
+                                (x.wrapping_add(2), y),
+                                (x.wrapping_add(3), y)
+                            );
                             short!((x.wrapping_sub(1), y), (x.wrapping_sub(2), y));
-                            long!((x.wrapping_sub(1), y), (x.wrapping_sub(2), y), (x.wrapping_sub(3), y));
+                            long!(
+                                (x.wrapping_sub(1), y),
+                                (x.wrapping_sub(2), y),
+                                (x.wrapping_sub(3), y)
+                            );
                             short!((x, y.wrapping_add(1)), (x, y.wrapping_add(2)));
-                            long!((x, y.wrapping_add(1)), (x, y.wrapping_add(2)), (x, y.wrapping_add(3)));
+                            long!(
+                                (x, y.wrapping_add(1)),
+                                (x, y.wrapping_add(2)),
+                                (x, y.wrapping_add(3))
+                            );
                             short!((x, y.wrapping_sub(1)), (x, y.wrapping_sub(2)));
-                            long!((x, y.wrapping_sub(1)), (x, y.wrapping_sub(2)), (x, y.wrapping_sub(3)));
+                            long!(
+                                (x, y.wrapping_sub(1)),
+                                (x, y.wrapping_sub(2)),
+                                (x, y.wrapping_sub(3))
+                            );
                         }
                         _ => (),
                     }
@@ -192,8 +217,7 @@ mod game {
                 if !skipped {
                     self.current_piece = !self.current_piece;
                     self.generate_actions(true);
-                }
-                    else {
+                } else {
                     let stats = self.pieces();
 
                     use std::cmp::Ordering;
@@ -221,12 +245,15 @@ mod game {
         pub fn current_piece(&self) -> Piece {
             self.current_piece
         }
-        
+
         pub fn pieces(&self) -> (usize, usize) {
-            self.tiles().iter().flatten().fold((0, 0), |(x, o), t| match t {
+            self.tiles()
+                .iter()
+                .flatten()
+                .fold((0, 0), |(x, o), t| match t {
                     Some(Piece::X) => (x + 1, o),
                     Some(Piece::O) => (x, o + 1),
-                    None => (x, o)
+                    None => (x, o),
                 })
         }
 
@@ -240,7 +267,7 @@ mod game {
     }
 }
 
-use game::{Game, Piece, Winner, Tiles, MoveError, Move};
+use game::{Game, Move, MoveError, Piece, Tiles, Winner};
 
 #[derive(Debug, Clone)]
 pub struct InvalidMove(String);
@@ -252,10 +279,9 @@ fn prompt_move() -> Move {
         let v = read_line();
         match parse_move(&v) {
             Ok(mov) => break mov,
-            Err(InvalidMove(invalid_str)) => eprintln!(
-                "Invalid move: '{}'. Please try again.",
-                invalid_str,
-            ),
+            Err(InvalidMove(invalid_str)) => {
+                eprintln!("Invalid move: '{}'. Please try again.", invalid_str,)
+            }
         }
     }
 }
@@ -291,7 +317,7 @@ fn parse_move(input: &str) -> Result<Move, InvalidMove> {
             };
 
             Ok(Move::Long(row, col))
-        },
+        }
         4 => {
             let b = match &input[0..1] {
                 "A" | "a" => 0,
@@ -349,13 +375,15 @@ fn parse_move(input: &str) -> Result<Move, InvalidMove> {
 
             Ok(Move::Short((a, b), (x, y)))
         }
-        _ => Err(InvalidMove(input.to_string()))
+        _ => Err(InvalidMove(input.to_string())),
     }
 }
 
 fn read_line() -> String {
     let mut input = String::new();
-    io::stdin().read_line(&mut input).expect("Failed to read input");
+    io::stdin()
+        .read_line(&mut input)
+        .expect("Failed to read input");
     if input.is_empty() {
         println!();
         process::exit(0);
@@ -375,11 +403,14 @@ fn print_tiles(tiles: &Tiles) {
     for (i, row) in tiles.iter().enumerate() {
         print!(" {}", i + 1);
         for tile in row {
-            print!(" {}", match *tile {
-                Some(Piece::X) => "x",
-                Some(Piece::O) => "o",
-                None => "\u{25A2}",
-            });
+            print!(
+                " {}",
+                match *tile {
+                    Some(Piece::X) => "x",
+                    Some(Piece::O) => "o",
+                    None => "\u{25A2}",
+                }
+            );
         }
         println!();
     }
@@ -398,7 +429,7 @@ fn main() {
                 let mov = prompt_move();
 
                 match game.make_move(mov) {
-                    Ok(()) => {},
+                    Ok(()) => (),
                     Err(MoveError::InvalidMove) => eprintln!("The selected move was invalid"),
                 }
             }
@@ -439,21 +470,20 @@ impl rubot::Game for Game {
 
         match player {
             Piece::X => self.pieces().0 as i32 - self.pieces().1 as i32,
-            Piece::O => self.pieces().1 as i32 - self.pieces().0 as i32
+            Piece::O => self.pieces().1 as i32 - self.pieces().0 as i32,
         }
     }
 
     fn look_ahead(&self, action: &Self::Action, player: &Self::Player) -> Self::Fitness {
         let value = match player {
             Piece::X => self.pieces().0 as i32 - self.pieces().1 as i32,
-            Piece::O => self.pieces().1 as i32 - self.pieces().0 as i32
+            Piece::O => self.pieces().1 as i32 - self.pieces().0 as i32,
         };
 
         let step = if let Move::Long(_, _) = action { 1 } else { 2 };
         if self.current_piece() != *player {
             value + step
-        }
-        else {
+        } else {
             value - step
         }
     }

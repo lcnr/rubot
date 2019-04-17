@@ -1,7 +1,7 @@
-use std::time::Duration;
 use std::io;
+use std::time::Duration;
 
-use shakmaty::{Move, MoveList, Color, Position, Setup, Role, uci::Uci};
+use shakmaty::{uci::Uci, Color, Move, MoveList, Position, Role, Setup};
 
 /// this example requires a newtype due to orphan rules, as both shakmaty::Chess and rubot::Game
 /// are from outside of this example.
@@ -34,11 +34,10 @@ impl rubot::Game for Chess {
                 Role::Queen => 90,
                 Role::King => 900,
             };
-            
+
             if piece.color == *player {
                 fitness += value;
-            }
-            else {
+            } else {
                 fitness -= value;
             }
         }
@@ -47,7 +46,7 @@ impl rubot::Game for Chess {
 }
 
 fn main() {
-    use rubot::{GameBot, Bot};
+    use rubot::{Bot, GameBot};
     let mut bot = Bot::new(Color::White);
     let mut game = Chess::default();
     while !game.0.is_game_over() {
@@ -65,7 +64,9 @@ fn get_move(chess: &Chess) -> Move {
     println!("Your turn, please input a move in UCI notation: ");
     loop {
         let mut input = String::new();
-        io::stdin().read_line(&mut input).expect("Failed to read input");
+        io::stdin()
+            .read_line(&mut input)
+            .expect("Failed to read input");
         let len_without_newline = input.trim_end().len();
         input.truncate(len_without_newline);
         match Uci::from_ascii(input.as_bytes()) {
