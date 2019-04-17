@@ -174,16 +174,11 @@ impl<T: Game> GameBot<T> for Bot<T> {
         let mut worse_terminated = Vec::new();
         let mut best_path = Vec::new();
         let mut best_fitness: Option<T::Fitness> = None;
+
+        let mut prev_best_fitness: Option<T::Fitness> = None;
         for depth in 1.. {
             let mut prev_best_path = mem::replace(&mut best_path, Vec::new());
             for action in mem::replace(&mut actions, Vec::new()).into_iter().rev() {
-                if Instant::now() > end_time {
-                    if actions.is_empty() {
-                        actions.push(action)
-                    }
-                    break;
-                }
-
                 let mut state = state.clone();
                 let fitness = state.execute(&action, &self.player);
                 match self.minimax(
@@ -194,12 +189,14 @@ impl<T: Game> GameBot<T> for Bot<T> {
                     None,
                     end_time,
                 ) {
-                    // if the time is over, return the current best element or the best element of the previous depth
                     Err(OutOfTimeError) => {
-                        if actions.is_empty() {
-                            actions.push(action)
+                        if best_fitness.or(prev_best_fitness).map_or(false, |bf| {
+                            terminated.as_ref().map_or(true, |(f, _a)| bf > *f)
+                        }) {
+                            return actions.pop().or(Some(action));
+                        } else {
+                            return Some(terminated.unwrap().1);
                         }
-                        break;
                     }
                     Ok(MiniMax::DeadEnd) => {
                         if terminated.as_ref().map_or(true, |(f, _a)| f < &fitness) {
@@ -245,26 +242,19 @@ impl<T: Game> GameBot<T> for Bot<T> {
                         })
                         .map(|(_f, a)| a),
                 );
-            } else {
-                best_fitness = terminated.as_ref().map(|(f, _a)| *f);
+
+                // all partially terminated actions are worse than all completely terminated actions
+                if actions.is_empty() {
+                    break;
+                }
             }
 
-            if Instant::now() > end_time || actions.is_empty() {
-                break;
-            }
+            prev_best_fitness = best_fitness;
+            best_fitness = terminated.as_ref().map(|(f, _a)| *f);
         }
 
-        if let Some((terminated_fitness, terminated_action)) = terminated {
-            if best_fitness.map_or(true, |best_fitness| best_fitness <= terminated_fitness) {
-                Some(terminated_action)
-            } else {
-                assert!(!actions.is_empty());
-                actions.pop()
-            }
-        } else {
-            assert!(!actions.is_empty());
-            actions.pop()
-        }
+        // all branches are terminated, as the loop is finished
+        Some(terminated.unwrap().1)
     }
 }
 
