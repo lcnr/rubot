@@ -1,4 +1,4 @@
-/// A game bot using alpha beta pruning
+//! A deterministic game bot using alpha beta pruning.
 
 use crate::{Game, GameBot};
 
@@ -128,9 +128,9 @@ impl<T: Game> State<T> {
     }
 }
 
-/// A game bot which analyses its moves using iterative deepening. In case [`select`][sel] terminates
+/// A game bot which analyses its moves using alpha beta pruning with iterative deepening. In case [`select`][sel] terminates
 /// after less than `duration`, the result is always the best possible move. While this bot does cache some data
-/// during computation, it does not require a lot of memory and does not store anything between different [`select`] calls.
+/// during computation, it does not require a lot of memory and does not store anything between different [`select`][sel] calls.
 /// 
 /// [sel]:trait.GameBot.html#tymethod.select
 pub struct Bot<T: Game> {

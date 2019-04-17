@@ -1,10 +1,10 @@
 #![forbid(unsafe_code)]
 //! An easily reusable game bot for deterministic games.
 //! 
-//! To use this bot it is required to implement the trait [`Game`][game].
-//! For more details, look at the trait documentation or visit the [examples directory][ex].
+//! It is required to implement the trait [`Game`][game] to use this crate.
+//! For more details, look at the [trait documentation][game] or visit the [examples directory][ex].
 //! 
-//! While this crate will probably have many different kind of bots, there is currently only one: [`alpha_beta`][ab].
+//! While this crate will probably have many different kind of bots in the future, there is currently only one: [`alpha_beta`][ab].
 //! 
 //! This bot uses an optimized version of [alpha beta pruning][ab_wiki] with [iterative deepening][id]. 
 //! 
