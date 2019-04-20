@@ -5,6 +5,7 @@ use crate::{Game, GameBot};
 use std::cmp;
 use std::mem;
 use std::time::{Duration, Instant};
+use std::fmt::{self, Debug};
 
 struct OutOfTimeError;
 
@@ -151,8 +152,18 @@ struct BestAction<T: Game> {
     path: Vec<T::Action>,
 }
 
-impl<T: Game> BestAction<T> {
-
+impl<T: Game> Debug for BestAction<T>
+where
+    T::Action: Debug,
+    T::Fitness: Debug,
+{
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("BestAction")
+            .field("action", &self.action)
+            .field("fitness", &self.fitness)
+            .field("path", &self.path)
+            .finish()
+    }
 }
 
 /// contains data about already terminated paths
@@ -170,6 +181,19 @@ impl<T: Game> Default for Terminated<T> {
             best_action: None,
             partial: Vec::new(),
         }
+    }
+}
+
+impl<T: Game> Debug for Terminated<T>
+where
+    T::Action: Debug,
+    T::Fitness: Debug,
+{
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("Terminated")
+            .field("best_action", &self.best_action)
+            .field("partial", &self.partial)
+            .finish()
     }
 }
 
@@ -226,7 +250,8 @@ pub struct Bot<T: Game> {
     player: T::Player,
 }
 
-impl<T: Game> GameBot<T> for Bot<T> {
+impl<T: Game> GameBot<T> for Bot<T>
+ {
     fn select(&mut self, state: &T, duration: Duration) -> Option<T::Action> {
         let end_time = Instant::now() + duration;
 
@@ -257,7 +282,7 @@ impl<T: Game> GameBot<T> for Bot<T> {
                     depth - 1,
                     end_time
                 ) {
-                    RateAction::TimeOut(action) => if terminated.best_fitness().map_or(false, |term| term < fitness) {
+                    RateAction::TimeOut(action) => if terminated.best_fitness().map_or(true, |term| term < fitness) {
                         return Some(action);
                     }
                     else {
