@@ -145,6 +145,73 @@ impl<T: Game> State<T> {
     }
 }
 
+struct BestAction<T: Game> {
+    action: T::Action,
+    fitness: T::Fitness,
+    path: Vec<T::Action>,
+}
+
+impl<T: Game> BestAction<T> {
+
+}
+
+/// contains data about already terminated paths
+struct Terminated<T: Game> {
+    /// the fitness of the best completely finished action
+    best_fitness: Option<T::Fitness>,
+    best_action: Option<T::Action>,
+    /// actions which terminated due to a cutoff, meaning that `fitness >= actual fitness`
+    partial: Vec<(T::Action, T::Fitness)>
+}
+
+impl<T: Game> Default for Terminated<T> {
+    #[inline]
+    fn default() -> Self {
+        Terminated {
+            best_fitness: None,
+            best_action: None,
+            partial: Vec::new(),
+        }
+    }
+}
+
+impl<T: Game> Terminated<T> {
+    /// returns all partially terminated actions which might be better than `best_fitness`
+    fn relevant_partials(&mut self, best_fitness: Option<T::Fitness>) -> Vec<T::Action> {
+        let mut relevant = Vec::new();
+        for (action, fitness) in mem::replace(&mut self.partial, Vec::new()) {
+            if Some(fitness) > best_fitness {
+                relevant.push(action);
+            }
+            else {
+                self.partial.push((action, fitness));
+            }
+        }
+        relevant
+    }
+
+    fn add_complete(&mut self, action: T::Action, fitness: T::Fitness) {
+        if Some(fitness) > self.best_fitness {
+            self.best_action = Some(action);
+            self.best_fitness = Some(fitness);
+            self.partial.retain(|(_a, f)| f > &fitness);
+        }
+    }
+
+    fn add_partial(&mut self, action: T::Action, fitness: T::Fitness) {
+        if Some(fitness) > self.best_fitness {
+            self.partial.push((action, fitness));
+        }
+    }
+}
+
+enum RateAction<T: Game> {
+    TimeOut(T::Action),
+    NewBest(BestAction<T>),
+    Worse(T::Action),
+    Terminated,
+}
+
 /// A game bot which analyses its moves using alpha beta pruning with iterative deepening. In case [`select`][sel] terminates
 /// after less than `duration`, the result is always the best possible move. While this bot does cache some data
 /// during computation, it does not require a lot of memory and does not store anything between different [`select`][sel] calls.
@@ -170,91 +237,89 @@ impl<T: Game> GameBot<T> for Bot<T> {
         actions.sort_by_cached_key(|a| state.look_ahead(&a, &self.player));
 
         // the best action which already terminated
-        let mut terminated: Option<(T::Fitness, T::Action)> = None;
-        let mut worse_terminated = Vec::new();
-        let mut best_path = Vec::new();
-        let mut best_fitness: Option<T::Fitness> = None;
-
-        let mut prev_best_fitness: Option<T::Fitness> = None;
+        let mut terminated = Terminated::default();
+        let mut best_action: Option<BestAction<T>> = None;
         for depth in 1.. {
-            let mut prev_best_path = mem::replace(&mut best_path, Vec::new());
-            for action in mem::replace(&mut actions, Vec::new()).into_iter().rev() {
-                let mut state = state.clone();
-                let fitness = state.execute(&action, &self.player);
-                match self.minimax(
-                    mem::replace(&mut prev_best_path, Vec::new()),
+            if let Some(BestAction { path, action, fitness }) = best_action.take() {
+                let alpha = terminated.best_fitness;
+
+                match self.rate_action(
                     state,
+                    action,
+                    &mut terminated,
+                    path,
+                    alpha,
                     depth - 1,
-                    best_fitness,
-                    None,
-                    end_time,
+                    end_time
                 ) {
-                    Err(OutOfTimeError) => {
-                        if best_fitness.or(prev_best_fitness).map_or(false, |bf| {
-                            terminated.as_ref().map_or(true, |(f, _a)| bf > *f)
-                        }) {
-                            return actions.pop().or(Some(action));
-                        } else {
-                            return Some(terminated.unwrap().1);
-                        }
+                    RateAction::TimeOut(action) => if terminated.best_fitness.map_or(false, |term| term < fitness) {
+                        return Some(action);
                     }
-                    Ok(MiniMax::DeadEnd) => {
-                        if terminated.as_ref().map_or(true, |(f, _a)| f < &fitness) {
-                            terminated = Some((fitness, action));
-                        }
+                    else {
+                        return terminated.best_action;
                     }
-                    Ok(MiniMax::Terminated(_path, Branch::Equal(fitness))) => {
-                        if terminated.as_ref().map_or(true, |(f, _a)| f < &fitness) {
-                            terminated = Some((fitness, action));
-                        }
-                    }
-                    Ok(MiniMax::Terminated(_path, Branch::Worse(maximum))) => {
-                        if terminated.as_ref().map_or(true, |(f, _a)| f < &maximum) {
-                            worse_terminated.push((fitness, action));
-                        }
-                    }
-                    Ok(MiniMax::Open(_path, Branch::Worse(_))) => {
-                        // keep the best action on top of the stack at all times
-                        let len = actions.len();
-                        actions.insert(len.saturating_sub(1), action);
-                    }
-                    Ok(MiniMax::Open(path, Branch::Equal(fitness))) => {
-                        actions.push(action);
-                        best_fitness = Some(fitness);
-                        best_path = path;
-                    }
-                    Ok(MiniMax::Terminated(_path, Branch::Better(_)))
-                    | Ok(MiniMax::Open(_path, Branch::Better(_))) => {
-                        unreachable!("beta cutoff at highest depth");
-                    }
+                    RateAction::NewBest(new) => debug_assert!(best_action.replace(new).map(|prev| actions.push(prev.action)).is_none()),
+                    RateAction::Terminated => (),
+                    RateAction::Worse(action) => actions.push(action),
                 }
             }
 
+            for action in mem::replace(&mut actions, Vec::new()).into_iter().rev() {
+                let alpha = cmp::max(best_action.as_ref().map(|best| best.fitness), terminated.best_fitness);
+                match self.rate_action(state, action, &mut terminated, Vec::new(), alpha, depth - 1, end_time) {
+                    RateAction::TimeOut(_action) => match (terminated.best_fitness, best_action) {
+                        (Some(term), Some(best)) => {
+                            if best.fitness > term {
+                                return Some(best.action);
+                            }
+                            else {
+                                return terminated.best_action;
+                            }
+                        }
+                        (Some(_), None) => return terminated.best_action,
+                        (None, Some(best)) => return Some(best.action),
+                        (None, None) => unreachable!("there should be a terminated or best action"),
+                    }
+                    RateAction::NewBest(new) => {
+                        best_action.replace(new).map(|prev| actions.push(prev.action));
+                    }
+                    RateAction::Terminated => (),
+                    RateAction::Worse(action) => actions.push(action),
+                }
+            }
+
+            for action in terminated.relevant_partials(best_action.as_ref().map(|best| best.fitness)) {
+                let alpha = cmp::max(best_action.as_ref().map(|best| best.fitness), terminated.best_fitness);
+                match self.rate_action(state, action, &mut terminated, Vec::new(), alpha, depth - 1, end_time) {
+                    RateAction::TimeOut(_action) => match (terminated.best_fitness, best_action) {
+                        (Some(term), Some(best)) => {
+                            if best.fitness > term {
+                                return Some(best.action);
+                            }
+                            else {
+                                return terminated.best_action;
+                            }
+                        }
+                        (Some(_), None) => return terminated.best_action,
+                        (None, Some(best)) => return Some(best.action),
+                        (None, None) => unreachable!("there should be a terminated or best action"),
+                    },
+                    RateAction::NewBest(new) => {
+                        best_action.replace(new).map(|prev| actions.push(prev.action));
+                    }
+                    RateAction::Terminated => (),
+                    RateAction::Worse(action) => actions.push(action),
+                }
+            }
+
+            // all partially terminated actions are worse than all completely terminated actions
             if actions.is_empty() {
-                worse_terminated.sort_by_key(|(f, _a)| *f);
-                actions.extend(
-                    mem::replace(&mut worse_terminated, Vec::new())
-                        .into_iter()
-                        .filter(|(max_f, _a)| {
-                            terminated
-                                .as_ref()
-                                .map_or(true, |(term_f, _a)| term_f < max_f)
-                        })
-                        .map(|(_f, a)| a),
-                );
-
-                // all partially terminated actions are worse than all completely terminated actions
-                if actions.is_empty() {
-                    break;
-                }
+                break;
             }
-
-            prev_best_fitness = best_fitness;
-            best_fitness = terminated.as_ref().map(|(f, _a)| *f);
         }
 
         // all branches are terminated, as the loop is finished
-        Some(terminated.unwrap().1)
+        Some(terminated.best_action.unwrap())
     }
 }
 
@@ -262,6 +327,63 @@ impl<T: Game> Bot<T> {
     /// Creates a new `Bot` for the given `player`.
     pub fn new(player: T::Player) -> Self {
         Self { player }
+    }
+
+    fn rate_action(
+        &mut self,
+        state: &T,
+        action: T::Action,
+        terminated: &mut Terminated<T>,
+        path: Vec<T::Action>,
+        alpha: Option<T::Fitness>,
+        depth: u32,
+        end_time: Instant,
+    ) -> RateAction<T> {
+        let mut state = state.clone();
+        let fitness = state.execute(&action, &self.player);
+        match self.minimax(
+            path,
+            state,
+            depth,
+            alpha,
+            None,
+            end_time,
+        ) {
+            Err(OutOfTimeError) => {
+                RateAction::TimeOut(action)
+            }
+            Ok(MiniMax::DeadEnd) => {
+                terminated.add_complete(action, fitness);
+                RateAction::Terminated
+            }
+            Ok(MiniMax::Terminated(_path, Branch::Equal(fitness))) => {
+                terminated.add_complete(action, fitness);
+                RateAction::Terminated
+            }
+            Ok(MiniMax::Terminated(_path, Branch::Worse(maximum))) => {
+                terminated.add_partial(action, maximum);
+                RateAction::Terminated
+            }
+            Ok(MiniMax::Open(_path, Branch::Worse(_))) => {
+                RateAction::Worse(action)
+            }
+            Ok(MiniMax::Open(path, Branch::Equal(fitness))) => {
+                if Some(fitness) > alpha {
+                    RateAction::NewBest(BestAction {
+                        action,
+                        fitness,
+                        path,
+                    })
+                }
+                else {
+                    RateAction::Worse(action)
+                }
+            }
+            Ok(MiniMax::Terminated(_path, Branch::Better(_)))
+            | Ok(MiniMax::Open(_path, Branch::Better(_))) => {
+                unreachable!("beta cutoff at highest depth");
+            }
+        }
     }
 
     fn minimax(
