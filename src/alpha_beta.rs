@@ -3,9 +3,9 @@
 use crate::{Game, GameBot};
 
 use std::cmp;
+use std::fmt::{self, Debug};
 use std::mem;
 use std::time::{Duration, Instant};
-use std::fmt::{self, Debug};
 
 struct OutOfTimeError;
 
@@ -171,7 +171,7 @@ struct Terminated<T: Game> {
     /// the fitness of the best completely finished action
     best_action: Option<(T::Action, T::Fitness)>,
     /// actions which terminated due to a cutoff, meaning that `fitness >= actual fitness`
-    partial: Vec<(T::Action, T::Fitness)>
+    partial: Vec<(T::Action, T::Fitness)>,
 }
 
 impl<T: Game> Default for Terminated<T> {
@@ -204,8 +204,7 @@ impl<T: Game> Terminated<T> {
         for (action, fitness) in mem::replace(&mut self.partial, Vec::new()) {
             if Some(fitness) > best_fitness {
                 relevant.push(action);
-            }
-            else {
+            } else {
                 self.partial.push((action, fitness));
             }
         }
@@ -235,7 +234,7 @@ impl<T: Game> Terminated<T> {
 }
 
 enum RateAction<T: Game> {
-    TimeOut(T::Action),
+    Cancelled(T::Action),
     NewBest(BestAction<T>),
     Worse(T::Action),
     Terminated,
@@ -250,8 +249,7 @@ pub struct Bot<T: Game> {
     player: T::Player,
 }
 
-impl<T: Game> GameBot<T> for Bot<T>
- {
+impl<T: Game> GameBot<T> for Bot<T> {
     fn select(&mut self, state: &T, duration: Duration) -> Option<T::Action> {
         let end_time = Instant::now() + duration;
 
@@ -270,7 +268,12 @@ impl<T: Game> GameBot<T> for Bot<T>
         let mut terminated = Terminated::default();
         let mut best_action: Option<BestAction<T>> = None;
         for depth in 1.. {
-            if let Some(BestAction { path, action, fitness }) = best_action.take() {
+            if let Some(BestAction {
+                path,
+                action,
+                fitness,
+            }) = best_action.take()
+            {
                 let alpha = terminated.best_fitness();
 
                 match self.rate_action(
@@ -280,53 +283,43 @@ impl<T: Game> GameBot<T> for Bot<T>
                     path,
                     alpha,
                     depth - 1,
-                    end_time
+                    end_time,
                 ) {
-                    RateAction::TimeOut(action) => if terminated.best_fitness().map_or(true, |term| term < fitness) {
-                        return Some(action);
-                    }
-                    else {
-                        return Some(terminated.finalize());
+                    RateAction::Cancelled(action) => {
+                        if terminated
+                            .best_fitness()
+                            .map_or(true, |term| term < fitness)
+                        {
+                            return Some(action);
+                        } else {
+                            return Some(terminated.finalize());
+                        }
                     }
                     RateAction::NewBest(new) => best_action = Some(new),
-                    RateAction::Terminated => (),
                     RateAction::Worse(action) => actions.push(action),
+                    RateAction::Terminated => (),
                 }
             }
 
             for action in mem::replace(&mut actions, Vec::new()).into_iter().rev() {
-                let alpha = cmp::max(best_action.as_ref().map(|best| best.fitness), terminated.best_fitness());
-                match self.rate_action(state, action, &mut terminated, Vec::new(), alpha, depth - 1, end_time) {
-                    RateAction::TimeOut(_action) => match (terminated.best_action, best_action) {
+                let alpha = cmp::max(
+                    best_action.as_ref().map(|best| best.fitness),
+                    terminated.best_fitness(),
+                );
+                match self.rate_action(
+                    state,
+                    action,
+                    &mut terminated,
+                    Vec::new(),
+                    alpha,
+                    depth - 1,
+                    end_time,
+                ) {
+                    RateAction::Cancelled(_action) => match (terminated.best_action, best_action) {
                         (Some(term), Some(best)) => {
                             if best.fitness > term.1 {
                                 return Some(best.action);
-                            }
-                            else {
-                                return Some(term.0);
-                            }
-                        }
-                        (Some(term), None) => return Some(term.0),
-                        (None, Some(best)) => return Some(best.action),
-                        (None, None) => unreachable!("there should be a terminated or best action"),
-                    }
-                    RateAction::NewBest(new) => {
-                        best_action.replace(new).map(|prev| actions.push(prev.action));
-                    }
-                    RateAction::Terminated => (),
-                    RateAction::Worse(action) => actions.push(action),
-                }
-            }
-
-            for action in terminated.relevant_partials(best_action.as_ref().map(|best| best.fitness)) {
-                let alpha = cmp::max(best_action.as_ref().map(|best| best.fitness), terminated.best_fitness());
-                match self.rate_action(state, action, &mut terminated, Vec::new(), alpha, depth - 1, end_time) {
-                    RateAction::TimeOut(_action) => match (terminated.best_action, best_action) {
-                        (Some(term), Some(best)) => {
-                            if best.fitness > term.1 {
-                                return Some(best.action);
-                            }
-                            else {
+                            } else {
                                 return Some(term.0);
                             }
                         }
@@ -335,10 +328,50 @@ impl<T: Game> GameBot<T> for Bot<T>
                         (None, None) => unreachable!("there should be a terminated or best action"),
                     },
                     RateAction::NewBest(new) => {
-                        best_action.replace(new).map(|prev| actions.push(prev.action));
+                        best_action
+                            .replace(new)
+                            .map(|prev| actions.push(prev.action));
                     }
-                    RateAction::Terminated => (),
                     RateAction::Worse(action) => actions.push(action),
+                    RateAction::Terminated => (),
+                }
+            }
+
+            for action in
+                terminated.relevant_partials(best_action.as_ref().map(|best| best.fitness))
+            {
+                let alpha = cmp::max(
+                    best_action.as_ref().map(|best| best.fitness),
+                    terminated.best_fitness(),
+                );
+                match self.rate_action(
+                    state,
+                    action,
+                    &mut terminated,
+                    Vec::new(),
+                    alpha,
+                    depth - 1,
+                    end_time,
+                ) {
+                    RateAction::Cancelled(_action) => match (terminated.best_action, best_action) {
+                        (Some(term), Some(best)) => {
+                            if best.fitness > term.1 {
+                                return Some(best.action);
+                            } else {
+                                return Some(term.0);
+                            }
+                        }
+                        (Some(term), None) => return Some(term.0),
+                        (None, Some(best)) => return Some(best.action),
+                        (None, None) => unreachable!("there should be a terminated or best action"),
+                    },
+                    RateAction::NewBest(new) => {
+                        best_action
+                            .replace(new)
+                            .map(|prev| actions.push(prev.action));
+                    }
+                    RateAction::Worse(action) => actions.push(action),
+                    RateAction::Terminated => (),
                 }
             }
 
@@ -371,17 +404,8 @@ impl<T: Game> Bot<T> {
     ) -> RateAction<T> {
         let mut state = state.clone();
         let fitness = state.execute(&action, &self.player);
-        match self.minimax(
-            path,
-            state,
-            depth,
-            alpha,
-            None,
-            end_time,
-        ) {
-            Err(OutOfTimeError) => {
-                RateAction::TimeOut(action)
-            }
+        match self.minimax(path, state, depth, alpha, None, end_time) {
+            Err(OutOfTimeError) => RateAction::Cancelled(action),
             Ok(MiniMax::DeadEnd) => {
                 terminated.add_complete(action, fitness);
                 RateAction::Terminated
@@ -394,9 +418,7 @@ impl<T: Game> Bot<T> {
                 terminated.add_partial(action, maximum);
                 RateAction::Terminated
             }
-            Ok(MiniMax::Open(_path, Branch::Worse(_))) => {
-                RateAction::Worse(action)
-            }
+            Ok(MiniMax::Open(_path, Branch::Worse(_))) => RateAction::Worse(action),
             Ok(MiniMax::Open(path, Branch::Equal(fitness))) => {
                 if Some(fitness) > alpha {
                     RateAction::NewBest(BestAction {
@@ -404,8 +426,7 @@ impl<T: Game> Bot<T> {
                         fitness,
                         path,
                     })
-                }
-                else {
+                } else {
                     RateAction::Worse(action)
                 }
             }
