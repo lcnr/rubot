@@ -125,7 +125,7 @@ pub trait Game: Clone {
     /// This function should always return the same [`Fitness`][fit] as calling [`fn execute`][exe].
     ///
     /// ```rust
-    /// # // this is full of lies, please forgive me senpai-kun
+    /// # // Why am I lying to you :O
     /// # struct Game;
     /// # impl Game {
     /// #   fn look_ahead(&self, action: &(), player: &()) -> u32 { 42 }
