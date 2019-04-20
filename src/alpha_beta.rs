@@ -258,7 +258,7 @@ impl<T: Game> GameBot<T> for Bot<T> {
                     else {
                         return terminated.best_action;
                     }
-                    RateAction::NewBest(new) => debug_assert!(best_action.replace(new).map(|prev| actions.push(prev.action)).is_none()),
+                    RateAction::NewBest(new) => best_action = Some(new),
                     RateAction::Terminated => (),
                     RateAction::Worse(action) => actions.push(action),
                 }
@@ -313,7 +313,7 @@ impl<T: Game> GameBot<T> for Bot<T> {
             }
 
             // all partially terminated actions are worse than all completely terminated actions
-            if actions.is_empty() {
+            if actions.is_empty() && best_action.is_none() {
                 break;
             }
         }
