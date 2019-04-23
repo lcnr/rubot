@@ -52,7 +52,7 @@ use std::io::{self, Write};
 use std::process;
 use std::time::Duration;
 
-use rubot::{Bot, GameBot};
+use rubot::Bot;
 
 mod game {
     use std::ops::Not;

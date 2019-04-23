@@ -21,7 +21,7 @@ mod brute;
 mod tests;
 
 use std::cmp::PartialEq;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 /// An interface required to interact with [`GameBot`s][bot].
 ///
@@ -80,7 +80,7 @@ use std::time::Duration;
 /// }
 ///
 /// fn main() {
-///     use rubot::{Bot, GameBot};
+///     use rubot::Bot;
 ///     let mut player_a = Bot::new(true);
 ///     let mut player_b = Bot::new(false);
 ///     let mut game = Game { flags: 21, active_player: true };
@@ -99,9 +99,15 @@ use std::time::Duration;
 /// [act]: trait.Game.html#associatedtype.Action
 /// [player]: trait.Game.html#associatedtype.player
 pub trait Game: Clone {
+    /// the player type
     type Player;
+    /// a executable action
     type Action: PartialEq;
+    /// the fitness of a state, higher is better
     type Fitness: Ord + Copy;
+    /// the collection returned by [`fn actions`][ac]
+    ///
+    /// [ac]:trait.Game.html#tymethod.actions
     type Actions: IntoIterator<Item = Self::Action>;
 
     /// Returns all currently possible actions and if they are executed by the given `player`.
@@ -145,13 +151,129 @@ pub trait Game: Clone {
     }
 }
 
-/// An interface for dealing with game bots. To learn how the bots currently work, please visit the individual implementations.
-pub trait GameBot<T: Game> {
-    /// Returns a chosen action based on the given game state.
+/// Converts a type into a [`RunCondition`][rc].
+///
+/// # Examples
+///
+/// [`Duration`][dur]
+/// ```rust
+/// # struct Game;
+/// # struct Bot;
+/// # impl Bot {
+/// #   fn select<U: rubot::IntoRunCondition>(&mut self, state: &Game, condition: U) -> Option<()> {
+/// #       Some(())
+/// #   }
+/// # }
+/// use std::time::Duration;
+///
+/// let available_time = Duration::from_secs(2);
+///
+/// let game: Game = // ...
+/// # Game;
+/// let mut bot: Bot = // ...
+/// # Bot;
+/// assert!(bot.select(&game, available_time).is_some())
+/// ```
+///
+///
+/// [rc]: trait.RunCondition.html
+/// [dur]: https://doc.rust-lang.org/std/time/struct.Duration.html
+pub trait IntoRunCondition {
+    type RunCondition: RunCondition;
+
+    /// consumes `self` and returns a [`RunCondition`][rc].
     ///
-    /// In case no `Action` is possible or the bot is currently not the active player, this functions returns `None`.
-    /// This method should run at most for a duration which is slightly larger than `duration`.
-    fn select(&mut self, state: &T, duration: Duration) -> Option<T::Action>;
+    /// [rc]: trait.RunCondition.html
+    fn into_run_condition(self) -> Self::RunCondition;
+}
+
+impl<T> IntoRunCondition for T
+where
+    T: RunCondition,
+{
+    type RunCondition = Self;
+
+    fn into_run_condition(self) -> Self {
+        self
+    }
+}
+
+/// Creates a [`RunCondition`][rc] which returns true until this `Duration` has passed.
+///
+/// [rc]: trait.RunCondition.html
+impl IntoRunCondition for Duration {
+    type RunCondition = Instant;
+
+    fn into_run_condition(self) -> Instant {
+        Instant::now() + self
+    }
+}
+
+/// A condition which indicates if the [`Bot`][bot] should keep on running.
+///
+/// # Examples
+///
+/// ```rust
+/// use std::time::Duration;
+///
+///
+/// ```
+/// 
+/// [bot]: alpha_beta/struct.Bot.html
+pub trait RunCondition {
+    fn step(&mut self) -> bool;
+    fn depth(&mut self, depth: u32) -> bool;
+}
+
+/// Returns `true` while the `Instant` is still in the future
+impl RunCondition for Instant {
+    #[inline]
+    fn step(&mut self) -> bool {
+        Instant::now() < *self
+    }
+
+    #[inline]
+    fn depth(&mut self, _: u32) -> bool {
+        Instant::now() < *self
+    }
+}
+
+/// A struct implementing [`RunCondition`][rc] which always returns `true`.
+///
+/// This means that the bot will run until the best action was found with certainty.
+///
+/// [rc]: trait.RunCondition.html
+#[derive(Clone, Copy, Debug)]
+pub struct RunToCompletion;
+
+impl RunCondition for RunToCompletion {
+    #[inline]
+    fn step(&mut self) -> bool {
+        true
+    }
+
+    #[inline]
+    fn depth(&mut self, _: u32) -> bool {
+        true
+    }
+}
+
+/// A struct implementing [`RunCondition`][rc] returning `false` once the current depth is bigger than `self.0`.
+///
+/// [rc]: trait.RunCondition.html
+#[derive(Clone, Copy, Debug)]
+pub struct Depth(u32);
+
+impl RunCondition for Depth {
+    #[inline]
+    fn step(&mut self) -> bool {
+        true
+    }
+
+    #[inline]
+    fn depth(&mut self, depth: u32) -> bool {
+        self.0 >= depth
+    }
 }
 
 pub use alpha_beta::Bot;

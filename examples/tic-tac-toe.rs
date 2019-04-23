@@ -245,7 +245,7 @@ fn print_tiles(tiles: &Tiles) {
 }
 
 fn main() {
-    use rubot::{Bot, GameBot};
+    use rubot::Bot;
 
     let mut game = Game::new();
     let mut opponent = Bot::new(Piece::O);
@@ -349,11 +349,10 @@ impl rubot::Game for Game {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rubot::Bot;
 
     #[test]
     fn first_pos() {
-        use rubot::{Bot, GameBot};
-
         let mut game = Game::new();
         game.make_move(0, 0).unwrap();
 

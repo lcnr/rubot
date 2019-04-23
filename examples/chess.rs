@@ -59,7 +59,7 @@ impl rubot::Game for Chess {
 }
 
 fn main() {
-    use rubot::{Bot, GameBot};
+    use rubot::Bot;
     let mut bot = Bot::new(Color::White);
     let mut game = Chess::default();
     while !game.0.is_game_over() {

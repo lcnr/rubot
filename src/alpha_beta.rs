@@ -1,13 +1,12 @@
 //! A deterministic game bot using alpha beta pruning.
 
-use crate::{Game, GameBot};
+use crate::{Game, IntoRunCondition, RunCondition};
 
 use std::cmp;
 use std::fmt::{self, Debug};
 use std::mem;
-use std::time::{Duration, Instant};
 
-struct OutOfTimeError;
+struct CancelledError;
 
 enum MiniMax<T: Game> {
     /// No new elements were found in this branch
@@ -249,9 +248,19 @@ pub struct Bot<T: Game> {
     player: T::Player,
 }
 
-impl<T: Game> GameBot<T> for Bot<T> {
-    fn select(&mut self, state: &T, duration: Duration) -> Option<T::Action> {
-        let end_time = Instant::now() + duration;
+impl<T: Game> Bot<T> {
+    /// Creates a new `Bot` for the given `player`.
+    pub fn new(player: T::Player) -> Self {
+        Self { player }
+    }
+
+    /// Returns a chosen action based on the given game state.
+    ///
+    /// In case no `Action` is possible or the bot is currently not the active player, this functions returns `None`.
+    /// This method runs until either the best possible action was found
+    /// or one of `fn RunCondition::depth` and `fn RunCondition::step` returned `false`.
+    pub fn select<U: IntoRunCondition>(&mut self, state: &T, condition: U) -> Option<T::Action> {
+        let mut condition = condition.into_run_condition();
 
         let (active, actions) = state.actions(&self.player);
         if !active {
@@ -267,7 +276,11 @@ impl<T: Game> GameBot<T> for Bot<T> {
         // the best action which already terminated
         let mut terminated = Terminated::default();
         let mut best_action: Option<BestAction<T>> = None;
-        for depth in 1.. {
+        for depth in 0.. {
+            if !condition.depth(depth) {
+                return best_action.take().map(|best| best.action);
+            }
+
             if let Some(BestAction {
                 path,
                 action,
@@ -282,8 +295,8 @@ impl<T: Game> GameBot<T> for Bot<T> {
                     &mut terminated,
                     path,
                     alpha,
-                    depth - 1,
-                    end_time,
+                    depth,
+                    &mut condition,
                 ) {
                     RateAction::Cancelled(action) => {
                         if terminated
@@ -312,8 +325,8 @@ impl<T: Game> GameBot<T> for Bot<T> {
                     &mut terminated,
                     Vec::new(),
                     alpha,
-                    depth - 1,
-                    end_time,
+                    depth,
+                    &mut condition,
                 ) {
                     RateAction::Cancelled(_action) => match (terminated.best_action, best_action) {
                         (Some(term), Some(best)) => {
@@ -350,8 +363,8 @@ impl<T: Game> GameBot<T> for Bot<T> {
                     &mut terminated,
                     Vec::new(),
                     alpha,
-                    depth - 1,
-                    end_time,
+                    depth,
+                    &mut condition,
                 ) {
                     RateAction::Cancelled(_action) => match (terminated.best_action, best_action) {
                         (Some(term), Some(best)) => {
@@ -377,6 +390,7 @@ impl<T: Game> GameBot<T> for Bot<T> {
 
             // all partially terminated actions are worse than all completely terminated actions
             if actions.is_empty() && best_action.is_none() {
+                debug_assert!(terminated.partial.is_empty());
                 break;
             }
         }
@@ -384,15 +398,8 @@ impl<T: Game> GameBot<T> for Bot<T> {
         // all branches are terminated, as the loop is finished
         Some(terminated.finalize())
     }
-}
 
-impl<T: Game> Bot<T> {
-    /// Creates a new `Bot` for the given `player`.
-    pub fn new(player: T::Player) -> Self {
-        Self { player }
-    }
-
-    fn rate_action(
+    fn rate_action<U: RunCondition>(
         &mut self,
         state: &T,
         action: T::Action,
@@ -400,12 +407,12 @@ impl<T: Game> Bot<T> {
         path: Vec<T::Action>,
         alpha: Option<T::Fitness>,
         depth: u32,
-        end_time: Instant,
+        condition: &mut U,
     ) -> RateAction<T> {
         let mut state = state.clone();
         let fitness = state.execute(&action, &self.player);
-        match self.minimax(path, state, depth, alpha, None, end_time) {
-            Err(OutOfTimeError) => RateAction::Cancelled(action),
+        match self.minimax(path, state, depth, alpha, None, condition) {
+            Err(CancelledError) => RateAction::Cancelled(action),
             Ok(MiniMax::DeadEnd) => {
                 terminated.add_complete(action, fitness);
                 RateAction::Terminated
@@ -437,17 +444,17 @@ impl<T: Game> Bot<T> {
         }
     }
 
-    fn minimax(
+    fn minimax<U: RunCondition>(
         &mut self,
         mut path: Vec<T::Action>,
         game_state: T,
         depth: u32,
         alpha: Option<T::Fitness>,
         beta: Option<T::Fitness>,
-        end_time: Instant,
-    ) -> Result<MiniMax<T>, OutOfTimeError> {
-        if Instant::now() > end_time {
-            Err(OutOfTimeError)
+        condition: &mut U,
+    ) -> Result<MiniMax<T>, CancelledError> {
+        if !condition.step() {
+            Err(CancelledError)
         } else if depth == 0 {
             debug_assert!(
                 path.is_empty(),
@@ -507,7 +514,7 @@ impl<T: Game> Bot<T> {
                     depth - 1,
                     alpha,
                     beta,
-                    end_time,
+                    condition,
                 )? {
                     MiniMax::DeadEnd => {
                         state.bind_equal(Vec::new(), fitness, action, true);

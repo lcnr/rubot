@@ -1,8 +1,7 @@
-use crate::{Game, GameBot};
+use crate::{Game, Bot, RunToCompletion};
 
 use std::fmt::{self, Debug, Formatter};
 use std::ops::Range;
-use std::time::Duration;
 
 #[derive(Clone, PartialEq, Eq)]
 struct Node {
@@ -57,19 +56,13 @@ impl Node {
     }
 }
 
-fn bots() -> Vec<Box<dyn GameBot<Node>>> {
-    vec![Box::new(crate::Bot::new(true))]
-}
-
 const EMPTY: Node = Node::new(true, 0);
 
 /// Who would have ever imagined that a length of 0 can cause problems.
 /// I obviously did not, that's why I had to add this test.
 #[test]
 fn empty() {
-    for mut bot in bots() {
-        assert_eq!(bot.select(&EMPTY, Duration::from_secs(1)), None);
-    }
+    assert_eq!(Bot::new(true).select(&EMPTY, RunToCompletion), None);
 }
 
 const DEPTH_ONE: Node = Node::new(true, 0).children(&[
@@ -81,10 +74,8 @@ const DEPTH_ONE: Node = Node::new(true, 0).children(&[
 /// Tests if the trivial case works
 #[test]
 fn depth_one() {
-    for mut bot in bots() {
-        // Some(1) to love
-        assert_eq!(bot.select(&DEPTH_ONE, Duration::from_secs(1)), Some(1));
-    }
+    // Some(1) to love
+    assert_eq!(Bot::new(true).select(&DEPTH_ONE, RunToCompletion), Some(1));
 }
 
 const DIFFERENT_DEPTHS: Node = Node::new(true, 0).children(&[
@@ -97,13 +88,11 @@ const DIFFERENT_DEPTHS: Node = Node::new(true, 0).children(&[
 /// Tests if terminating nodes get ignored in case another branch is longer
 #[test]
 fn different_depths() {
-    for mut bot in bots() {
-        // Some(1) to love
-        assert_eq!(
-            bot.select(&DIFFERENT_DEPTHS, Duration::from_secs(1)),
-            Some(1)
-        );
-    }
+    // Some(1) to love
+    assert_eq!(
+        Bot::new(true).select(&DIFFERENT_DEPTHS, RunToCompletion),
+        Some(1)
+    );
 }
 
 const ALPHA_REUSE: Node = Node::new(true, 0).children(&[
@@ -124,9 +113,7 @@ const ALPHA_REUSE: Node = Node::new(true, 0).children(&[
 /// which can cause a beta cutoff at [1][0][0], causing the returned fitness to be 4 instead of 2.
 #[test]
 fn alpha_reuse() {
-    for mut bot in bots() {
-        assert_eq!(bot.select(&ALPHA_REUSE, Duration::from_secs(1)), Some(0));
-    }
+    assert_eq!(Bot::new(true).select(&ALPHA_REUSE, RunToCompletion), Some(0));
 }
 
 const PREMATURE_TERMINATION: Node = Node::new(true, 0).children(&[
@@ -160,10 +147,8 @@ const PREMATURE_TERMINATION: Node = Node::new(true, 0).children(&[
 /// Note: [0] is a deep branch with only bad options to prevent another bug from interfering. <3
 #[test]
 fn premature_termination() {
-    for mut bot in bots() {
-        assert_eq!(
-            bot.select(&PREMATURE_TERMINATION, Duration::from_secs(1)),
-            Some(1)
-        );
-    }
+    assert_eq!(
+        Bot::new(true).select(&PREMATURE_TERMINATION, RunToCompletion),
+        Some(1)
+    );
 }
