@@ -6,6 +6,7 @@ use std::cmp;
 use std::fmt::{self, Debug};
 use std::mem;
 
+#[derive(Clone, Copy, Debug)]
 struct CancelledError;
 
 enum MiniMax<T: Game> {
@@ -17,6 +18,20 @@ enum MiniMax<T: Game> {
     DeadEnd,
 }
 
+impl<T: Game> Debug for MiniMax<T>
+where
+    T::Action: Debug,
+    T::Fitness: Debug,
+{
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            MiniMax::Terminated(path, branch) => write!(f, "Terminated({:?}, {:?})", path, branch),
+            MiniMax::Open(path, branch) => write!(f, "Open({:?}, {:?})", path, branch),
+            MiniMax::DeadEnd => write!(f, "DeadEnd"),
+        }
+    }
+}
+
 enum Branch<T: Game> {
     /// `actual_fitness <= fitness`
     Worse(T::Fitness),
@@ -24,6 +39,20 @@ enum Branch<T: Game> {
     Better(T::Fitness),
     /// `actual_fitness == fitness`
     Equal(T::Fitness),
+}
+
+impl<T: Game> Debug for Branch<T>
+where
+    T::Action: Debug,
+    T::Fitness: Debug,
+{
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Branch::Worse(fitness) => write!(f, "Worse({:?})", fitness),
+            Branch::Better(fitness) => write!(f, "Better({:?})", fitness),
+            Branch::Equal(fitness) => write!(f, "Equal({:?})", fitness),
+        }
+    }
 }
 
 struct State<T: Game> {
@@ -223,12 +252,9 @@ impl<T: Game> Terminated<T> {
         }
     }
 
+    /// returns the fitness of the best completely terminated action
     fn best_fitness(&self) -> Option<T::Fitness> {
         self.best_action.as_ref().map(|(_a, fitness)| *fitness)
-    }
-
-    fn finalize(self) -> T::Action {
-        self.best_action.map(|(a, _f)| a).unwrap()
     }
 }
 
@@ -248,6 +274,21 @@ enum RateAction<T: Game> {
     Terminated,
 }
 
+impl<T: Game> Debug for RateAction<T>
+where
+    T::Action: Debug,
+    T::Fitness: Debug,
+{
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            RateAction::Cancelled(action) => write!(f, "Cancelled({:?})", action),
+            RateAction::NewBest(best_action) => write!(f, "NewBest({:?})", best_action),
+            RateAction::Worse(action) => write!(f, "Worse({:?})", action),
+            RateAction::Terminated => write!(f, "Terminated"),
+        }
+    }
+}
+
 /// A game bot which analyses its moves using alpha beta pruning with iterative deepening. In case [`select`][sel] terminates
 /// after less than `duration`, the result is always the best possible move. While this bot does cache some data
 /// during computation, it does not require a lot of memory and does not store anything between different [`select`][sel] calls.
@@ -257,7 +298,9 @@ pub struct Bot<T: Game> {
     player: T::Player,
 }
 
-impl<T: Game> Bot<T> {
+impl<T: Game> Bot<T>
+where T::Action: Debug, T::Fitness: Debug
+{
     /// Creates a new `Bot` for the given `player`.
     pub fn new(player: T::Player) -> Self {
         Self { player }
@@ -286,6 +329,7 @@ impl<T: Game> Bot<T> {
         let mut terminated = Terminated::default();
         let mut best_action: Option<BestAction<T>> = None;
         for depth in 0.. {
+            println!("depth: {}, actions: {:?}, terminated: {:?}, best_action: {:?}", depth, actions, terminated, best_action);
 
             if !condition.depth(depth) {
                 return current_best(terminated, best_action)
@@ -317,12 +361,14 @@ impl<T: Game> Bot<T> {
                 }
             }
 
+            println!("ACTIONS");
             for action in mem::replace(&mut actions, Vec::new()).into_iter().rev() {
+                println!("action: {:?}", action);
                 let alpha = cmp::max(
                     best_action.as_ref().map(|best| best.fitness),
                     terminated.best_fitness(),
                 );
-                match self.rate_action(
+                match dbg!(self.rate_action(
                     state,
                     action,
                     &mut terminated,
@@ -330,7 +376,7 @@ impl<T: Game> Bot<T> {
                     alpha,
                     depth,
                     &mut condition,
-                ) {
+                )) {
                     RateAction::Cancelled(_action) => return current_best(terminated, best_action),
                     RateAction::NewBest(new) => {
                         best_action
@@ -377,7 +423,7 @@ impl<T: Game> Bot<T> {
         }
 
         // all branches are terminated, as the loop is finished
-        Some(terminated.finalize())
+        Some(terminated.best_action.map(|(a, _f)| a).unwrap())
     }
 
     fn rate_action<U: RunCondition>(
@@ -392,7 +438,7 @@ impl<T: Game> Bot<T> {
     ) -> RateAction<T> {
         let mut state = state.clone();
         let fitness = state.execute(&action, &self.player);
-        match self.minimax(path, state, depth, alpha, None, condition) {
+        match dbg!(self.minimax(path, state, depth, alpha, None, condition)) {
             Err(CancelledError) => RateAction::Cancelled(action),
             Ok(MiniMax::DeadEnd) => {
                 terminated.add_complete(action, fitness);
@@ -489,14 +535,18 @@ impl<T: Game> Bot<T> {
 
             let mut state = State::new(alpha, beta, active);
             for (game_state, action, fitness) in states.into_iter().rev() {
-                match self.minimax(
+                if state.is_cutoff() {
+                    break;
+                }
+                println!("action: {:?}, fitness: {:?}, depth: {}", action, fitness, depth);
+                match dbg!(self.minimax(
                     mem::replace(&mut path, Vec::new()),
                     game_state,
                     depth - 1,
                     alpha,
                     beta,
                     condition,
-                )? {
+                )?) {
                     MiniMax::DeadEnd => {
                         state.bind_equal(Vec::new(), fitness, action, true);
                     }
@@ -518,10 +568,6 @@ impl<T: Game> Bot<T> {
                     MiniMax::Open(path, Branch::Worse(fitness)) => {
                         state.bind_worse(path, fitness, action, false);
                     }
-                }
-
-                if state.is_cutoff() {
-                    break;
                 }
             }
 
