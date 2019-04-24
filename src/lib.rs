@@ -16,7 +16,8 @@
 pub mod alpha_beta;
 
 #[allow(unused)]
-mod brute;
+#[doc(hidden)]
+pub mod brute;
 #[cfg(test)]
 mod tests;
 
@@ -198,7 +199,41 @@ where
     }
 }
 
-/// Creates a [`RunCondition`][rc] which returns true until this `Duration` has passed.
+/// Can be converted into [`RunCondition`][rc] which returns `true` for the first `self.0` steps.
+///
+/// [rc]: trait.RunCondition.html
+#[derive(Clone, Copy, Debug)]
+pub struct Steps(pub u32);
+
+/// The [`RunCondition`][rc] created by `fn `[`Steps`][steps]`::into_run_condition`
+///
+/// [rc]: trait.RunCondition.html
+/// [steps]: struct.Steps.html
+#[doc(hidden)]
+pub struct InnerSteps(u32, u32);
+
+impl IntoRunCondition for Steps {
+    type RunCondition = InnerSteps;
+
+    fn into_run_condition(self) -> InnerSteps {
+        InnerSteps(0, self.0)
+    }
+}
+
+impl RunCondition for InnerSteps {
+    #[inline]
+    fn step(&mut self) -> bool {
+        self.0 += 1;
+        self.0 < self.1
+    }
+
+    #[inline]
+    fn depth(&mut self, _: u32) -> bool {
+        true
+    }
+}
+
+/// Creates a [`RunCondition`][rc] which returns `true` until this `Duration` has passed.
 ///
 /// [rc]: trait.RunCondition.html
 impl IntoRunCondition for Duration {
@@ -218,7 +253,7 @@ impl IntoRunCondition for Duration {
 ///
 ///
 /// ```
-/// 
+///
 /// [bot]: alpha_beta/struct.Bot.html
 pub trait RunCondition {
     fn step(&mut self) -> bool;
@@ -262,7 +297,7 @@ impl RunCondition for RunToCompletion {
 ///
 /// [rc]: trait.RunCondition.html
 #[derive(Clone, Copy, Debug)]
-pub struct Depth(u32);
+pub struct Depth(pub u32);
 
 impl RunCondition for Depth {
     #[inline]
@@ -272,7 +307,7 @@ impl RunCondition for Depth {
 
     #[inline]
     fn depth(&mut self, depth: u32) -> bool {
-        self.0 >= depth
+        self.0 > depth
     }
 }
 
