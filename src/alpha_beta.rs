@@ -232,6 +232,15 @@ impl<T: Game> Terminated<T> {
     }
 }
 
+fn current_best<T: Game>(terminated: Terminated<T>, best_action: Option<BestAction<T>>) -> Option<T::Action> {
+    match (terminated.best_action, best_action) {
+        (Some(term), Some(best)) => Some(if best.fitness > term.1 { best.action } else { term.0 }),
+        (Some(term), None) => Some(term.0),
+        (None, Some(best)) => Some(best.action),
+        (None, None) => None,
+    }
+}
+
 enum RateAction<T: Game> {
     Cancelled(T::Action),
     NewBest(BestAction<T>),
@@ -277,8 +286,9 @@ impl<T: Game> Bot<T> {
         let mut terminated = Terminated::default();
         let mut best_action: Option<BestAction<T>> = None;
         for depth in 0.. {
+
             if !condition.depth(depth) {
-                return best_action.take().map(|best| best.action);
+                return current_best(terminated, best_action)
             }
 
             if let Some(BestAction {
@@ -299,14 +309,7 @@ impl<T: Game> Bot<T> {
                     &mut condition,
                 ) {
                     RateAction::Cancelled(action) => {
-                        if terminated
-                            .best_fitness()
-                            .map_or(true, |term| term < fitness)
-                        {
-                            return Some(action);
-                        } else {
-                            return Some(terminated.finalize());
-                        }
+                        return current_best(terminated, Some(BestAction { path: Vec::new(), action, fitness }))
                     }
                     RateAction::NewBest(new) => best_action = Some(new),
                     RateAction::Worse(action) => actions.push(action),
@@ -328,18 +331,7 @@ impl<T: Game> Bot<T> {
                     depth,
                     &mut condition,
                 ) {
-                    RateAction::Cancelled(_action) => match (terminated.best_action, best_action) {
-                        (Some(term), Some(best)) => {
-                            if best.fitness > term.1 {
-                                return Some(best.action);
-                            } else {
-                                return Some(term.0);
-                            }
-                        }
-                        (Some(term), None) => return Some(term.0),
-                        (None, Some(best)) => return Some(best.action),
-                        (None, None) => unreachable!("there should be a terminated or best action"),
-                    },
+                    RateAction::Cancelled(_action) => return current_best(terminated, best_action),
                     RateAction::NewBest(new) => {
                         best_action
                             .replace(new)
@@ -366,18 +358,7 @@ impl<T: Game> Bot<T> {
                     depth,
                     &mut condition,
                 ) {
-                    RateAction::Cancelled(_action) => match (terminated.best_action, best_action) {
-                        (Some(term), Some(best)) => {
-                            if best.fitness > term.1 {
-                                return Some(best.action);
-                            } else {
-                                return Some(term.0);
-                            }
-                        }
-                        (Some(term), None) => return Some(term.0),
-                        (None, Some(best)) => return Some(best.action),
-                        (None, None) => unreachable!("there should be a terminated or best action"),
-                    },
+                    RateAction::Cancelled(_action) => return current_best(terminated, best_action),
                     RateAction::NewBest(new) => {
                         best_action
                             .replace(new)
