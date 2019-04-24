@@ -184,8 +184,39 @@ const FUZZ_ONE: Node = Node::new(true, 0).children(&[
     Node::new(true, 0)
 ]);
 
-/// The world is wierd.
+/// The world is weird.
 #[test]
 fn fuzz_one() {
     assert_eq!(Bot::new(true).select(&FUZZ_ONE, RunToCompletion), Some(0));
+}
+
+#[rustfmt::skip]
+const FUZZ_TWO: Node = Node::new(true, 0).children(&[
+    // fitness 32
+    Node::new(true, 74).children(&[
+        Node::new(true, 2).children(&[
+            Node::new(false, 1).children(&[
+                Node::new(false, 117).children(&[
+                    Node::new(false, -119)
+                ]),
+            ]),
+            Node::new(true, 32)
+        ]),
+        Node::new(false, 1),
+    ]),
+    // fitness 0
+    Node::new(true, 0).children(&[
+        Node::new(false, -11).children(&[
+            Node::new(true, -64).children(&[
+                Node::new(true, -26)
+            ]),
+            Node::new(true, 32),
+        ]),
+        Node::new(true, 0),
+    ]),
+]);
+
+#[test]
+fn fuzz_two() {
+    assert_eq!(Bot::new(true).select(&FUZZ_TWO, RunToCompletion), Some(0));
 }
