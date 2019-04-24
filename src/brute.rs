@@ -1,6 +1,8 @@
 //! This module contains a bot which simply brute forces every possible action, this bot should only be used for testing.
 use crate::Game;
 
+use std::fmt;
+
 /// A bot which uses brute force to calculate the optimal move
 pub struct Bot<T: Game> {
     player: T::Player,
@@ -35,6 +37,29 @@ impl<T: Game> Bot<T> {
         Some(best.0)
     }
 
+    pub fn is_best(&mut self, state: &T, best: Option<&T::Action>) -> bool {
+        let (active, actions) = state.actions(&self.player);
+        if !active {
+            return best.is_none();
+        }
+
+        let mut actions = actions.into_iter();
+        if best.is_none() {
+            return actions.next().is_none();
+        }
+
+        let mut best = self.minimax(state, best.unwrap(), std::u32::MAX);
+
+        for action in actions {
+            let new = self.minimax(state, &action, std::u32::MAX);
+            if new > best {
+                return false;
+            }
+        }
+
+        true
+    }
+
     fn minimax(&mut self, state: &T, action: &T::Action, depth: u32) -> T::Fitness {
         if depth == 0 {
             state.look_ahead(&action, &self.player)
@@ -49,5 +74,33 @@ impl<T: Game> Bot<T> {
 
             if active { iter.max() } else { iter.min() }.unwrap_or(fitness)
         }
+    }
+}
+
+impl<T: Game> Bot<T>
+where
+    T::Fitness: fmt::Debug,
+    T::Action: fmt::Debug,
+{
+    pub fn print_best(&mut self, state: &T, depth: u32) {
+        let (active, actions) = state.actions(&self.player);
+        assert!(active);
+
+        let mut actions = actions.into_iter();
+
+        let mut best = {
+            let action = actions.next().unwrap();
+            let value = self.minimax(state, &action, depth);
+            (action, value)
+        };
+
+        for action in actions {
+            let new = self.minimax(state, &action, depth);
+            if new > best.1 {
+                best = (action, new);
+            }
+        }
+
+        println!("best: {:?}, fitness: {:?}", best.0, best.1);
     }
 }
