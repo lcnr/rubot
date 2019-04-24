@@ -57,7 +57,7 @@ impl Debug for Node {
         f.debug_struct("Node")
             .field("player", &self.player)
             .field("fitness", &self.fitness)
-            .field("children", &("&".to_owned() + &format!("{:?}", self.children)))
+            .field("children", &self.children)
             .finish()
     }
 }
