@@ -184,10 +184,8 @@ const FUZZ_ONE: Node = Node::new(true, 0).children(&[
     Node::new(true, 0)
 ]);
 
+/// The world is wierd.
 #[test]
 fn fuzz_one() {
-    assert_eq!(
-        Bot::new(true).select(&FUZZ_ONE, RunToCompletion),
-        Some(0)
-    );
+    assert_eq!(Bot::new(true).select(&FUZZ_ONE, RunToCompletion), Some(0));
 }

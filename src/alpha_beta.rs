@@ -61,9 +61,8 @@ struct State<T: Game> {
     best_fitness: Option<T::Fitness>,
     path: Vec<T::Action>,
     terminated: bool,
+    is_exact: bool,
     active: bool,
-    /// this is either less than alpha or more than beta, used if all actions are *undesirable*
-    edge_case: Option<T::Fitness>,
 }
 
 impl<T: Game> State<T> {
@@ -75,14 +74,21 @@ impl<T: Game> State<T> {
             path: Vec::new(),
             terminated: true,
             active,
-            edge_case: None,
+            is_exact: true,
         }
     }
 
-    fn update_best_action(&mut self, path: Vec<T::Action>, action: T::Action, fitness: T::Fitness) {
+    fn update_best_action(
+        &mut self,
+        path: Vec<T::Action>,
+        action: T::Action,
+        fitness: T::Fitness,
+        is_exact: bool,
+    ) {
         self.path = path;
         self.path.push(action);
-        self.best_fitness = Some(fitness)
+        self.best_fitness = Some(fitness);
+        self.is_exact = is_exact;
     }
 
     fn bind_equal(
@@ -96,12 +102,12 @@ impl<T: Game> State<T> {
         if self.active {
             self.alpha = Some(self.alpha.map_or(fitness, |value| cmp::max(value, fitness)));
             if self.best_fitness.map_or(true, |old| old <= fitness) {
-                self.update_best_action(path, action, fitness);
+                self.update_best_action(path, action, fitness, true);
             }
         } else {
             self.beta = Some(self.beta.map_or(fitness, |value| cmp::min(value, fitness)));
             if self.best_fitness.map_or(true, |old| old >= fitness) {
-                self.update_best_action(path, action, fitness);
+                self.update_best_action(path, action, fitness, true);
             }
         }
     }
@@ -118,9 +124,9 @@ impl<T: Game> State<T> {
             debug_assert!(self.alpha.map_or(true, |value| value <= fitness));
             self.alpha = Some(fitness);
             debug_assert!(self.best_fitness.map_or(true, |value| value <= fitness));
-            self.update_best_action(path, action, fitness);
-        } else if self.best_fitness.is_none() {
-            self.edge_case = Some(self.edge_case.map_or(fitness, |min| cmp::min(fitness, min)));
+            self.update_best_action(path, action, fitness, false);
+        } else if self.best_fitness.map_or(true, |value| value >= fitness) {
+            self.update_best_action(path, action, fitness, false);
         }
     }
 
@@ -136,34 +142,30 @@ impl<T: Game> State<T> {
             debug_assert!(self.beta.map_or(true, |value| value >= fitness));
             self.beta = Some(fitness);
             debug_assert!(self.best_fitness.map_or(true, |value| value >= fitness));
-            self.update_best_action(path, action, fitness);
-        } else if self.best_fitness.is_none() {
-            self.edge_case = Some(self.edge_case.map_or(fitness, |max| cmp::max(fitness, max)));
+            self.update_best_action(path, action, fitness, false);
+        } else if self.best_fitness.map_or(true, |value| value <= fitness) {
+            self.update_best_action(path, action, fitness, false);
         }
     }
 
-    fn is_cutoff(&self) -> bool {
+    fn cutoff(&mut self) -> bool {
         if let (Some(ref alpha), Some(ref beta)) = (self.alpha, self.beta) {
+            self.is_exact = false;
             alpha >= beta
         } else {
             false
         }
     }
 
-    fn consume(self) -> MiniMax<T> {
-        let branch = match (self.is_cutoff(), self.active) {
-            (true, true) => Branch::Better(self.alpha.unwrap()),
-            (true, false) => Branch::Worse(self.beta.unwrap()),
-            (false, _) => self
-                .best_fitness
-                .map(|res| Branch::Equal(res))
-                .unwrap_or_else(|| {
-                    if self.active {
-                        Branch::Worse(self.edge_case.unwrap())
-                    } else {
-                        Branch::Better(self.edge_case.unwrap())
-                    }
-                }),
+    fn consume(mut self) -> MiniMax<T> {
+        let branch = if self.is_exact || !self.cutoff() {
+            Branch::Equal(self.best_fitness.unwrap())
+        } else {
+            if self.active {
+                Branch::Better(self.best_fitness.unwrap())
+            } else {
+                Branch::Worse(self.best_fitness.unwrap())
+            }
         };
 
         if self.terminated {
@@ -258,9 +260,16 @@ impl<T: Game> Terminated<T> {
     }
 }
 
-fn current_best<T: Game>(terminated: Terminated<T>, best_action: Option<BestAction<T>>) -> Option<T::Action> {
+fn current_best<T: Game>(
+    terminated: Terminated<T>,
+    best_action: Option<BestAction<T>>,
+) -> Option<T::Action> {
     match (terminated.best_action, best_action) {
-        (Some(term), Some(best)) => Some(if best.fitness > term.1 { best.action } else { term.0 }),
+        (Some(term), Some(best)) => Some(if best.fitness > term.1 {
+            best.action
+        } else {
+            term.0
+        }),
         (Some(term), None) => Some(term.0),
         (None, Some(best)) => Some(best.action),
         (None, None) => None,
@@ -299,7 +308,9 @@ pub struct Bot<T: Game> {
 }
 
 impl<T: Game> Bot<T>
-where T::Action: Debug, T::Fitness: Debug
+where
+    T::Action: Debug,
+    T::Fitness: Debug,
 {
     /// Creates a new `Bot` for the given `player`.
     pub fn new(player: T::Player) -> Self {
@@ -329,10 +340,13 @@ where T::Action: Debug, T::Fitness: Debug
         let mut terminated = Terminated::default();
         let mut best_action: Option<BestAction<T>> = None;
         for depth in 0.. {
-            println!("depth: {}, actions: {:?}, terminated: {:?}, best_action: {:?}", depth, actions, terminated, best_action);
+            println!(
+                "\n\ndepth: {}, actions: {:?}, terminated: {:?}, best_action: {:?}",
+                depth, actions, terminated, best_action
+            );
 
             if !condition.depth(depth) {
-                return current_best(terminated, best_action)
+                return current_best(terminated, best_action);
             }
 
             if let Some(BestAction {
@@ -353,7 +367,14 @@ where T::Action: Debug, T::Fitness: Debug
                     &mut condition,
                 ) {
                     RateAction::Cancelled(action) => {
-                        return current_best(terminated, Some(BestAction { path: Vec::new(), action, fitness }))
+                        return current_best(
+                            terminated,
+                            Some(BestAction {
+                                path: Vec::new(),
+                                action,
+                                fitness,
+                            }),
+                        )
                     }
                     RateAction::NewBest(new) => best_action = Some(new),
                     RateAction::Worse(action) => actions.push(action),
@@ -535,10 +556,13 @@ where T::Action: Debug, T::Fitness: Debug
 
             let mut state = State::new(alpha, beta, active);
             for (game_state, action, fitness) in states.into_iter().rev() {
-                if state.is_cutoff() {
+                if state.cutoff() {
                     break;
                 }
-                println!("action: {:?}, fitness: {:?}, depth: {}", action, fitness, depth);
+                println!(
+                    "action: {:?}, fitness: {:?}, depth: {}",
+                    action, fitness, depth
+                );
                 match dbg!(self.minimax(
                     mem::replace(&mut path, Vec::new()),
                     game_state,
