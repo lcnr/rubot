@@ -308,9 +308,9 @@ pub struct Bot<T: Game> {
 }
 
 impl<T: Game> Bot<T>
-where
-    T::Action: Debug,
-    T::Fitness: Debug,
+//where
+//    T::Action: Debug,
+//    T::Fitness: Debug,
 {
     /// Creates a new `Bot` for the given `player`.
     pub fn new(player: T::Player) -> Self {
@@ -340,11 +340,6 @@ where
         let mut terminated = Terminated::default();
         let mut best_action: Option<BestAction<T>> = None;
         for depth in 0.. {
-            println!(
-                "\n\ndepth: {}, actions: {:?}, terminated: {:?}, best_action: {:?}",
-                depth, actions, terminated, best_action
-            );
-
             if !condition.depth(depth) {
                 return current_best(terminated, best_action);
             }
@@ -382,14 +377,12 @@ where
                 }
             }
 
-            println!("ACTIONS");
             for action in mem::replace(&mut actions, Vec::new()).into_iter().rev() {
-                println!("action: {:?}", action);
                 let alpha = cmp::max(
                     best_action.as_ref().map(|best| best.fitness),
                     terminated.best_fitness(),
                 );
-                match dbg!(self.rate_action(
+                match self.rate_action(
                     state,
                     action,
                     &mut terminated,
@@ -397,7 +390,7 @@ where
                     alpha,
                     depth,
                     &mut condition,
-                )) {
+                ) {
                     RateAction::Cancelled(_action) => return current_best(terminated, best_action),
                     RateAction::NewBest(new) => {
                         best_action
@@ -459,7 +452,7 @@ where
     ) -> RateAction<T> {
         let mut state = state.clone();
         let fitness = state.execute(&action, &self.player);
-        match dbg!(self.minimax(path, state, depth, alpha, None, condition)) {
+        match self.minimax(path, state, depth, alpha, None, condition) {
             Err(CancelledError) => RateAction::Cancelled(action),
             Ok(MiniMax::DeadEnd) => {
                 terminated.add_complete(action, fitness);
@@ -559,18 +552,15 @@ where
                 if state.cutoff() {
                     break;
                 }
-                println!(
-                    "action: {:?}, fitness: {:?}, depth: {}",
-                    action, fitness, depth
-                );
-                match dbg!(self.minimax(
+
+                match self.minimax(
                     mem::replace(&mut path, Vec::new()),
                     game_state,
                     depth - 1,
                     alpha,
                     beta,
                     condition,
-                )?) {
+                )? {
                     MiniMax::DeadEnd => {
                         state.bind_equal(Vec::new(), fitness, action, true);
                     }
