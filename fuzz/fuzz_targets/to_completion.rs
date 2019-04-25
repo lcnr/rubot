@@ -106,7 +106,7 @@ impl Node {
                 next = rng.next_u32() as usize % (pos.as_ref().unwrap().children.len() + 1);
             }
 
-            pos.unwrap().children.push(Node::new(i & 1 == 0, i as i8));
+            pos.unwrap().children.push(Node::new(i & 1 == 0, (i ^ 1) as i8));
         }
 
         root
