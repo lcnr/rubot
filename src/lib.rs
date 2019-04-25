@@ -81,15 +81,15 @@ use std::time::{Duration, Instant};
 /// }
 ///
 /// fn main() {
-///     use rubot::Bot;
+///     use rubot::{Bot, ToCompletion};
 ///     let mut player_a = Bot::new(true);
 ///     let mut player_b = Bot::new(false);
 ///     let mut game = Game { flags: 21, active_player: true };
 ///     loop {
-///         game.remove_flags(player_a.select(&game, Duration::from_secs(2)).unwrap());
+///         game.remove_flags(player_a.select(&game, ToCompletion).unwrap());
 ///         if game.flags == 0 { break }
 ///
-///         game.remove_flags(player_b.select(&game, Duration::from_secs(2)).unwrap());
+///         game.remove_flags(player_b.select(&game, ToCompletion).unwrap());
 ///         if game.flags == 0 { break }
 ///     }
 ///     // in case both players play perfectly, the player who begins should always win
@@ -279,9 +279,9 @@ impl RunCondition for Instant {
 ///
 /// [rc]: trait.RunCondition.html
 #[derive(Clone, Copy, Debug)]
-pub struct RunToCompletion;
+pub struct ToCompletion;
 
-impl RunCondition for RunToCompletion {
+impl RunCondition for ToCompletion {
     #[inline]
     fn step(&mut self) -> bool {
         true

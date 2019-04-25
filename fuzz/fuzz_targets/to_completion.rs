@@ -6,7 +6,7 @@ use std::num::Wrapping;
 use std::ops::Range;
 use std::convert::TryInto;
 
-use rubot::{Game, Bot, brute::Bot as Brute, RunToCompletion};
+use rubot::{Game, Bot, brute::Bot as Brute, ToCompletion};
 use std::fmt::{self, Debug, Formatter};
 
 pub struct XorShiftRng {
@@ -116,7 +116,7 @@ impl Node {
 fuzz_target!(|data: &[u8]| {
     if data.len() >= 4 {
         let node = Node::from_bytes(data);
-        let selected = Bot::new(true).select(&node, RunToCompletion);
+        let selected = Bot::new(true).select(&node, ToCompletion);
         let is_best = Brute::new(true).is_best(&node, selected.as_ref());
         if !is_best  {
             println!("Error with node: {:?}. Expected: {:?}, Actual: {:?}", node, Brute::new(true).select(&node, std::u32::MAX), selected);

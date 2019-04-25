@@ -41,6 +41,14 @@ enum Branch<T: Game> {
     Equal(T::Fitness),
 }
 
+impl<T: Game> Branch<T> {
+    fn fitness(&self) -> T::Fitness {
+        match self {
+            Branch::Worse(fitness) | Branch::Better(fitness) | Branch::Equal(fitness) => *fitness,
+        }
+    }
+}
+
 impl<T: Game> Debug for Branch<T>
 where
     T::Action: Debug,
@@ -58,9 +66,8 @@ where
 struct State<T: Game> {
     alpha: Option<T::Fitness>,
     beta: Option<T::Fitness>,
-    best_fitness: Option<T::Fitness>,
+    best_fitness: Option<Branch<T>>,
     path: Vec<T::Action>,
-    is_exact: bool,
     terminated: bool,
     active: bool,
 }
@@ -76,7 +83,6 @@ where
             .field("beta", &self.beta)
             .field("best_fitness", &self.best_fitness)
             .field("path", &self.path)
-            .field("is_exact", &self.is_exact)
             .field("terminated", &self.terminated)
             .field("active", &self.active)
             .finish()
@@ -90,23 +96,15 @@ impl<T: Game> State<T> {
             beta,
             best_fitness: None,
             path: Vec::new(),
-            is_exact: true,
             terminated: true,
             active,
         }
     }
 
-    fn update_best_action(
-        &mut self,
-        path: Vec<T::Action>,
-        action: T::Action,
-        fitness: T::Fitness,
-        is_exact: bool,
-    ) {
+    fn update_best_action(&mut self, path: Vec<T::Action>, action: T::Action, fitness: Branch<T>) {
         self.path = path;
         self.path.push(action);
         self.best_fitness = Some(fitness);
-        self.is_exact = is_exact;
     }
 
     fn bind_equal(
@@ -119,13 +117,21 @@ impl<T: Game> State<T> {
         self.terminated &= terminated;
         if self.active {
             self.alpha = Some(self.alpha.map_or(fitness, |value| cmp::max(value, fitness)));
-            if self.best_fitness.map_or(true, |old| old <= fitness) {
-                self.update_best_action(path, action, fitness, true);
+            if self
+                .best_fitness
+                .as_ref()
+                .map_or(true, |old| old.fitness() <= fitness)
+            {
+                self.update_best_action(path, action, Branch::Equal(fitness));
             }
         } else {
             self.beta = Some(self.beta.map_or(fitness, |value| cmp::min(value, fitness)));
-            if self.best_fitness.map_or(true, |old| old >= fitness) {
-                self.update_best_action(path, action, fitness, true);
+            if self
+                .best_fitness
+                .as_ref()
+                .map_or(true, |old| old.fitness() >= fitness)
+            {
+                self.update_best_action(path, action, Branch::Equal(fitness));
             }
         }
     }
@@ -141,8 +147,17 @@ impl<T: Game> State<T> {
         if self.active {
             debug_assert!(self.alpha.map_or(true, |value| value <= fitness));
             self.alpha = Some(fitness);
-            debug_assert!(self.best_fitness.map_or(true, |value| value <= fitness));
-            self.update_best_action(path, action, fitness, false);
+            debug_assert!(self
+                .best_fitness
+                .as_ref()
+                .map_or(true, |value| value.fitness() <= fitness));
+            self.update_best_action(path, action, Branch::Better(fitness));
+        } else if self
+            .best_fitness
+            .as_ref()
+            .map_or(true, |old| old.fitness() >= fitness)
+        {
+            self.update_best_action(path, action, Branch::Better(fitness))
         }
     }
 
@@ -157,43 +172,53 @@ impl<T: Game> State<T> {
         if !self.active {
             debug_assert!(self.beta.map_or(true, |value| value >= fitness));
             self.beta = Some(fitness);
-            debug_assert!(self.best_fitness.map_or(true, |value| value >= fitness));
-            self.update_best_action(path, action, fitness, false);
+            debug_assert!(self
+                .best_fitness
+                .as_ref()
+                .map_or(true, |value| value.fitness() >= fitness));
+            self.update_best_action(path, action, Branch::Worse(fitness));
+        } else if self
+            .best_fitness
+            .as_ref()
+            .map_or(true, |old| old.fitness() <= fitness)
+        {
+            self.update_best_action(path, action, Branch::Worse(fitness))
         }
     }
 
-    fn cutoff(&mut self) -> bool {
+    fn cutoff(&mut self) -> Option<MiniMax<T>> {
         if let (Some(ref alpha), Some(ref beta)) = (self.alpha, self.beta) {
-            self.is_exact = false;
-            alpha >= beta
+            if alpha >= beta {
+                let branch = if self.active {
+                    Branch::Better(self.alpha.unwrap())
+                } else {
+                    Branch::Worse(self.beta.unwrap())
+                };
+
+                if self.terminated {
+                    Some(MiniMax::Terminated(
+                        mem::replace(&mut self.path, Vec::new()),
+                        branch,
+                    ))
+                } else {
+                    Some(MiniMax::Open(
+                        mem::replace(&mut self.path, Vec::new()),
+                        branch,
+                    ))
+                }
+            } else {
+                None
+            }
         } else {
-            false
+            None
         }
     }
 
-    fn consume(mut self) -> MiniMax<T> {
-        let branch = if let Some(best_fitness) = self.best_fitness {
-            if self.is_exact || !self.cutoff() {
-                Branch::Equal(best_fitness)
-            } else {
-                if self.active {
-                    Branch::Better(best_fitness)
-                } else {
-                    Branch::Worse(best_fitness)
-                }
-            }
-        } else {
-            if self.active {
-                Branch::Worse(self.alpha.unwrap())
-            } else {
-                Branch::Better(self.beta.unwrap())
-            }
-        };
-
+    fn consume(self) -> MiniMax<T> {
         if self.terminated {
-            MiniMax::Terminated(self.path, branch)
+            MiniMax::Terminated(self.path, self.best_fitness.unwrap())
         } else {
-            MiniMax::Open(self.path, branch)
+            MiniMax::Open(self.path, self.best_fitness.unwrap())
         }
     }
 }
@@ -559,8 +584,8 @@ impl<T: Game> Bot<T> {
 
             let mut state = State::new(alpha, beta, active);
             for (game_state, action, fitness) in states.into_iter().rev() {
-                if state.cutoff() {
-                    break;
+                if let Some(cutoff) = state.cutoff() {
+                    return Ok(cutoff);
                 }
 
                 match self.minimax(

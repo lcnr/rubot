@@ -1,4 +1,4 @@
-use crate::{Bot, Game, RunToCompletion};
+use crate::{Bot, Game, ToCompletion};
 
 use std::fmt::{self, Debug, Formatter};
 use std::ops::Range;
@@ -63,7 +63,7 @@ const EMPTY: Node = Node::new(true, 0);
 /// I obviously did not, that's why I had to add this test.
 #[test]
 fn empty() {
-    assert_eq!(Bot::new(true).select(&EMPTY, RunToCompletion), None);
+    assert_eq!(Bot::new(true).select(&EMPTY, ToCompletion), None);
 }
 
 #[rustfmt::skip]
@@ -77,7 +77,7 @@ const DEPTH_ONE: Node = Node::new(true, 0).children(&[
 #[test]
 fn depth_one() {
     // Some(1) to love
-    assert_eq!(Bot::new(true).select(&DEPTH_ONE, RunToCompletion), Some(1));
+    assert_eq!(Bot::new(true).select(&DEPTH_ONE, ToCompletion), Some(1));
 }
 
 #[rustfmt::skip]
@@ -93,7 +93,7 @@ const DIFFERENT_DEPTHS: Node = Node::new(true, 0).children(&[
 fn different_depths() {
     // Some(1) to love
     assert_eq!(
-        Bot::new(true).select(&DIFFERENT_DEPTHS, RunToCompletion),
+        Bot::new(true).select(&DIFFERENT_DEPTHS, ToCompletion),
         Some(1)
     );
 }
@@ -117,10 +117,7 @@ const ALPHA_REUSE: Node = Node::new(true, 0).children(&[
 /// which can cause a beta cutoff at [1][0][0], causing the returned fitness to be 4 instead of 2.
 #[test]
 fn alpha_reuse() {
-    assert_eq!(
-        Bot::new(true).select(&ALPHA_REUSE, RunToCompletion),
-        Some(0)
-    );
+    assert_eq!(Bot::new(true).select(&ALPHA_REUSE, ToCompletion), Some(0));
 }
 
 #[rustfmt::skip]
@@ -156,7 +153,7 @@ const PREMATURE_TERMINATION: Node = Node::new(true, 0).children(&[
 #[test]
 fn premature_termination() {
     assert_eq!(
-        Bot::new(true).select(&PREMATURE_TERMINATION, RunToCompletion),
+        Bot::new(true).select(&PREMATURE_TERMINATION, ToCompletion),
         Some(1)
     );
 }
@@ -187,7 +184,7 @@ const FUZZ_ONE: Node = Node::new(true, 0).children(&[
 /// The world is weird.
 #[test]
 fn fuzz_one() {
-    assert_eq!(Bot::new(true).select(&FUZZ_ONE, RunToCompletion), Some(0));
+    assert_eq!(Bot::new(true).select(&FUZZ_ONE, ToCompletion), Some(0));
 }
 
 #[rustfmt::skip]
@@ -214,7 +211,7 @@ const FUZZ_TWO: Node = Node::new(true, 0).children(&[
 /// error due to incorrect interpretation of the exact cutoff in [1][0][1]
 #[test]
 fn fuzz_two() {
-    assert_eq!(Bot::new(true).select(&FUZZ_TWO, RunToCompletion), Some(0));
+    assert_eq!(Bot::new(true).select(&FUZZ_TWO, ToCompletion), Some(0));
 }
 
 #[rustfmt::skip]
@@ -242,5 +239,5 @@ const FUZZ_THREE: Node = Node::new(true, 0).children(&[
 
 #[test]
 fn fuzz_three() {
-    assert_eq!(Bot::new(true).select(&FUZZ_THREE, RunToCompletion), Some(1));
+    assert_eq!(Bot::new(true).select(&FUZZ_THREE, ToCompletion), Some(1));
 }
