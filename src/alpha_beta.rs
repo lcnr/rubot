@@ -474,7 +474,7 @@ impl<T: Game> Bot<T> {
 
             // all partially terminated actions are worse than all completely terminated actions
             if actions.is_empty() && best_action.is_none() {
-                debug_assert!(terminated.partial.is_empty());
+                assert!(terminated.partial.is_empty());
                 break;
             }
         }
