@@ -196,26 +196,22 @@ const FUZZ_TWO: Node = Node::new(true, 0).children(&[
     Node::new(true, 74).children(&[
         Node::new(true, 2).children(&[
             Node::new(false, 1).children(&[
-                Node::new(false, 117).children(&[
-                    Node::new(false, -119)
-                ]),
+                Node::new(false, -119)
             ]),
-            Node::new(true, 32)
+            Node::new(true, 42)
         ]),
-        Node::new(false, 1),
     ]),
     // fitness 0
     Node::new(true, 0).children(&[
-        Node::new(false, -11).children(&[
-            Node::new(true, -64).children(&[
-                Node::new(true, -26)
-            ]),
-            Node::new(true, 32),
+        Node::new(false, 0).children(&[
+            Node::new(true, -1),
+            Node::new(true, 42),
         ]),
         Node::new(true, 0),
     ]),
 ]);
 
+/// error due to incorrect interpretation of the exact cutoff in [1][0][1]
 #[test]
 fn fuzz_two() {
     assert_eq!(Bot::new(true).select(&FUZZ_TWO, RunToCompletion), Some(0));
