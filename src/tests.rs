@@ -216,3 +216,31 @@ const FUZZ_TWO: Node = Node::new(true, 0).children(&[
 fn fuzz_two() {
     assert_eq!(Bot::new(true).select(&FUZZ_TWO, RunToCompletion), Some(0));
 }
+
+#[rustfmt::skip]
+const FUZZ_THREE: Node = Node::new(true, 0).children(&[
+    // fitness 3
+    Node::new(false, 1).children(&[
+        Node::new(false, 2).children(&[
+            Node::new(true, 10).children(&[
+                Node::new(true, 3),
+                Node::new(true, 10).children(&[
+                    Node::new(true, 0)
+                ]),
+            ]),
+        ]),
+    ]),
+    // fitness 8
+    Node::new(true, 8).children(&[
+        Node::new(true, 2),
+        Node::new(false, 0).children(&[
+            Node::new(true, 8),
+            Node::new(true, 10)
+        ]),
+    ]),
+]);
+
+#[test]
+fn fuzz_three() {
+    assert_eq!(Bot::new(true).select(&FUZZ_THREE, RunToCompletion), Some(1));
+}
