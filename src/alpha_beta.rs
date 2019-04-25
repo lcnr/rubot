@@ -107,7 +107,6 @@ impl<T: Game> State<T> {
         self.path.push(action);
         self.best_fitness = Some(fitness);
         self.is_exact = is_exact;
-
     }
 
     fn bind_equal(
@@ -183,12 +182,10 @@ impl<T: Game> State<T> {
                     Branch::Worse(best_fitness)
                 }
             }
-        }
-        else {
+        } else {
             if self.active {
                 Branch::Worse(self.alpha.unwrap())
-            }
-            else {
+            } else {
                 Branch::Better(self.beta.unwrap())
             }
         };
@@ -332,8 +329,7 @@ pub struct Bot<T: Game> {
     player: T::Player,
 }
 
-impl<T: Game> Bot<T>
-{
+impl<T: Game> Bot<T> {
     /// Creates a new `Bot` for the given `player`.
     pub fn new(player: T::Player) -> Self {
         Self { player }
@@ -525,12 +521,10 @@ impl<T: Game> Bot<T>
             );
 
             let (active, actions) = game_state.actions(&self.player);
-            let actions = actions
-                .into_iter()
-                .map(|action| {
-                    let fitness = game_state.look_ahead(&action, &self.player);
-                    (action, fitness)
-                });
+            let actions = actions.into_iter().map(|action| {
+                let fitness = game_state.look_ahead(&action, &self.player);
+                (action, fitness)
+            });
             let selected = if active {
                 actions.max_by_key(|(_, fitness)| *fitness)
             } else {
