@@ -308,9 +308,6 @@ pub struct Bot<T: Game> {
 }
 
 impl<T: Game> Bot<T>
-//where
-//    T::Action: Debug,
-//    T::Fitness: Debug,
 {
     /// Creates a new `Bot` for the given `player`.
     pub fn new(player: T::Player) -> Self {
