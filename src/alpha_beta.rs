@@ -60,9 +60,27 @@ struct State<T: Game> {
     beta: Option<T::Fitness>,
     best_fitness: Option<T::Fitness>,
     path: Vec<T::Action>,
-    terminated: bool,
     is_exact: bool,
+    terminated: bool,
     active: bool,
+}
+
+impl<T: Game> Debug for State<T>
+where
+    T::Action: Debug,
+    T::Fitness: Debug,
+{
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("BestAction")
+            .field("alpha", &self.alpha)
+            .field("beta", &self.beta)
+            .field("best_fitness", &self.best_fitness)
+            .field("path", &self.path)
+            .field("is_exact", &self.is_exact)
+            .field("terminated", &self.terminated)
+            .field("active", &self.active)
+            .finish()
+    }
 }
 
 impl<T: Game> State<T> {
@@ -72,9 +90,9 @@ impl<T: Game> State<T> {
             beta,
             best_fitness: None,
             path: Vec::new(),
+            is_exact: true,
             terminated: true,
             active,
-            is_exact: true,
         }
     }
 
@@ -89,6 +107,7 @@ impl<T: Game> State<T> {
         self.path.push(action);
         self.best_fitness = Some(fitness);
         self.is_exact = is_exact;
+
     }
 
     fn bind_equal(
@@ -125,8 +144,6 @@ impl<T: Game> State<T> {
             self.alpha = Some(fitness);
             debug_assert!(self.best_fitness.map_or(true, |value| value <= fitness));
             self.update_best_action(path, action, fitness, false);
-        } else if self.best_fitness.map_or(true, |value| value >= fitness) {
-            self.update_best_action(path, action, fitness, false);
         }
     }
 
@@ -143,8 +160,6 @@ impl<T: Game> State<T> {
             self.beta = Some(fitness);
             debug_assert!(self.best_fitness.map_or(true, |value| value >= fitness));
             self.update_best_action(path, action, fitness, false);
-        } else if self.best_fitness.map_or(true, |value| value <= fitness) {
-            self.update_best_action(path, action, fitness, false);
         }
     }
 
@@ -158,13 +173,23 @@ impl<T: Game> State<T> {
     }
 
     fn consume(mut self) -> MiniMax<T> {
-        let branch = if self.is_exact || !self.cutoff() {
-            Branch::Equal(self.best_fitness.unwrap())
-        } else {
-            if self.active {
-                Branch::Better(self.best_fitness.unwrap())
+        let branch = if let Some(best_fitness) = self.best_fitness {
+            if self.is_exact || !self.cutoff() {
+                Branch::Equal(best_fitness)
             } else {
-                Branch::Worse(self.best_fitness.unwrap())
+                if self.active {
+                    Branch::Better(best_fitness)
+                } else {
+                    Branch::Worse(best_fitness)
+                }
+            }
+        }
+        else {
+            if self.active {
+                Branch::Worse(self.alpha.unwrap())
+            }
+            else {
+                Branch::Better(self.beta.unwrap())
             }
         };
 
@@ -500,22 +525,16 @@ impl<T: Game> Bot<T>
             );
 
             let (active, actions) = game_state.actions(&self.player);
+            let actions = actions
+                .into_iter()
+                .map(|action| {
+                    let fitness = game_state.look_ahead(&action, &self.player);
+                    (action, fitness)
+                });
             let selected = if active {
-                actions
-                    .into_iter()
-                    .map(|action| {
-                        let fitness = game_state.look_ahead(&action, &self.player);
-                        (action, fitness)
-                    })
-                    .max_by_key(|(_, fitness)| *fitness)
+                actions.max_by_key(|(_, fitness)| *fitness)
             } else {
-                actions
-                    .into_iter()
-                    .map(|action| {
-                        let fitness = game_state.look_ahead(&action, &self.player);
-                        (action, fitness)
-                    })
-                    .min_by_key(|(_, fitness)| *fitness)
+                actions.min_by_key(|(_, fitness)| *fitness)
             };
 
             Ok(selected
