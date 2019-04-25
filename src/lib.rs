@@ -245,15 +245,8 @@ impl IntoRunCondition for Duration {
 }
 
 /// A condition which indicates if the [`Bot`][bot] should keep on running.
-///
-/// # Examples
-///
-/// ```rust
-/// use std::time::Duration;
-///
-///
-/// ```
-///
+/// It is recommended to use [`Duration`] for nearly all use cases.
+/// 
 /// [bot]: alpha_beta/struct.Bot.html
 pub trait RunCondition {
     fn step(&mut self) -> bool;
@@ -294,7 +287,7 @@ impl RunCondition for ToCompletion {
 }
 
 /// A struct implementing [`RunCondition`][rc] returning `false` once the current depth is bigger than `self.0`.
-///
+/// 
 /// [rc]: trait.RunCondition.html
 #[derive(Clone, Copy, Debug)]
 pub struct Depth(pub u32);
