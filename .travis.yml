@@ -7,7 +7,7 @@ sudo: false
 script:
   
   - cargo build --verbose
-  - cd fuzz && cargo build --verbose
+  - cd fuzz && cargo build --verbose && cd .. || cd ..
   - cargo test
 notifications:
   email:
