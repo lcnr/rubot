@@ -6,8 +6,8 @@ use std::ops::Range;
 
 /// A tree node, implements [`Game`][game].
 ///
-/// As `Node`s require its children to be `'static`,
-/// it is recommended to only use it in constants.
+/// As `Node`s require its children to be `'static`
+/// it is recommended to only use them in constants.
 ///
 /// # Examples
 ///
