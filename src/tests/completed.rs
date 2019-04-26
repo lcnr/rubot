@@ -3,7 +3,7 @@ use super::*;
 use crate::ToCompletion;
 
 #[rustfmt::skip]
-const EMPTY: Node = Node::new(true, 0);
+const EMPTY: Node = Node::root();
 
 /// Who would have ever imagined that a length of 0 can cause problems.
 /// I obviously did not, that's why I had to add this test.
@@ -13,7 +13,7 @@ fn empty() {
 }
 
 #[rustfmt::skip]
-const DEPTH_ONE: Node = Node::new(true, 0).children(&[
+const DEPTH_ONE: Node = Node::root().children(&[
         Node::new(true, 0),
         Node::new(true, 2),
         Node::new(true, 1)
@@ -27,7 +27,7 @@ fn depth_one() {
 }
 
 #[rustfmt::skip]
-const DIFFERENT_DEPTHS: Node = Node::new(true, 0).children(&[
+const DIFFERENT_DEPTHS: Node = Node::root().children(&[
     Node::new(false, 0).children(&[
         Node::new(true, 0)
     ]),
@@ -45,7 +45,7 @@ fn different_depths() {
 }
 
 #[rustfmt::skip]
-const ALPHA_REUSE: Node = Node::new(true, 0).children(&[
+const ALPHA_REUSE: Node = Node::root().children(&[
     Node::new(false, 0).children(&[
         Node::new(false, 5).children(&[
             Node::new(true, 3)
@@ -67,7 +67,7 @@ fn alpha_reuse() {
 }
 
 #[rustfmt::skip]
-const PREMATURE_TERMINATION: Node = Node::new(true, 0).children(&[
+const PREMATURE_TERMINATION: Node = Node::root().children(&[
     Node::new(false, 0).children(&[
         Node::new(false, 0).children(&[
             Node::new(false, 0).children(&[
@@ -105,7 +105,7 @@ fn premature_termination() {
 }
 
 #[rustfmt::skip]
-const FUZZ_ONE: Node = Node::new(true, 0).children(&[
+const FUZZ_ONE: Node = Node::root().children(&[
     // fitness: 3
     Node::new(true, 0).children(&[
         Node::new(false, 0).children(&[
@@ -134,7 +134,7 @@ fn fuzz_one() {
 }
 
 #[rustfmt::skip]
-const FUZZ_TWO: Node = Node::new(true, 0).children(&[
+const FUZZ_TWO: Node = Node::root().children(&[
     // fitness 32
     Node::new(true, 74).children(&[
         Node::new(true, 2).children(&[
@@ -161,7 +161,7 @@ fn fuzz_two() {
 }
 
 #[rustfmt::skip]
-const FUZZ_THREE: Node = Node::new(true, 0).children(&[
+const FUZZ_THREE: Node = Node::root().children(&[
     // fitness 3
     Node::new(false, 1).children(&[
         Node::new(false, 2).children(&[

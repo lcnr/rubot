@@ -14,6 +14,7 @@
 //! [ex]:https://github.com/lcnr/rubot/tree/master/examples
 //! [game]:trait.Game.html
 pub mod alpha_beta;
+pub mod tree;
 
 #[allow(unused)]
 #[doc(hidden)]

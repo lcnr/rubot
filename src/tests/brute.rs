@@ -3,7 +3,7 @@ use super::*;
 use crate::brute::Bot as Brute;
 
 #[rustfmt::skip]
-const ALLOWED_ACTIONS_DEPTH_ZERO: Node = Node::new(true, 0).children(&[
+const ALLOWED_ACTIONS_DEPTH_ZERO: Node = Node::root().children(&[
     Node::new(true, -1),
     Node::new(true, 65).children(&[
         Node::new(false, 0)

@@ -3,7 +3,7 @@ use super::*;
 use crate::Steps;
 
 #[rustfmt::skip]
-const FUZZ_ONE: Node = Node::new(true, 0).children(&[
+const FUZZ_ONE: Node = Node::root().children(&[
     Node::new(true, -1),
     Node::new(true, 65).children(&[
         Node::new(false, 0)
