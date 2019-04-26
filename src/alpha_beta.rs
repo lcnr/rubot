@@ -421,6 +421,8 @@ impl<T: Game> Bot<T> {
                 return current_best(terminated, best_action).or_else(|| actions.pop());
             }
 
+            let prev_actions = mem::replace(&mut actions, Vec::new());
+
             if let Some(BestAction {
                 path,
                 action,
@@ -454,7 +456,7 @@ impl<T: Game> Bot<T> {
                 }
             }
 
-            for action in mem::replace(&mut actions, Vec::new()).into_iter().rev() {
+            for action in prev_actions.into_iter().rev() {
                 let alpha = cmp::max(
                     best_action.as_ref().map(|best| best.fitness),
                     terminated.best_fitness(),
@@ -592,8 +594,9 @@ impl<T: Game> Bot<T> {
                 actions.min_by_key(|(_, fitness)| *fitness)
             };
 
-            Ok(selected.map_or(MiniMax::DeadEnd, 
-            |(action, fitness)| MiniMax::Open(vec![action], Branch::Equal(fitness)))
+            Ok(selected.map_or(MiniMax::DeadEnd, |(action, fitness)| {
+                MiniMax::Open(vec![action], Branch::Equal(fitness))
+            }))
         } else {
             let (active, actions) = game_state.actions(&self.player);
             let mut states: Vec<_> = actions
