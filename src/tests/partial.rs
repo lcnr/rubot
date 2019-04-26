@@ -20,7 +20,7 @@ fn fuzz_one() {
             .iter()
             .find(|&action| action == &selected)
             .is_some(),
-        "Actual: {:?}",
+        "actual: {:?}",
         selected
     );
 }
