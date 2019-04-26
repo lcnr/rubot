@@ -384,7 +384,7 @@ impl<T: Game> Bot<T> {
         let mut best_action: Option<BestAction<T>> = None;
         for depth in 0.. {
             if !condition.depth(depth) {
-                return current_best(terminated, best_action);
+                return current_best(terminated, best_action).or_else(|| actions.pop());
             }
 
             if let Some(BestAction {

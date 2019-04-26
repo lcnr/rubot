@@ -106,9 +106,6 @@ impl<T: Game> Bot<T> {
             .filter(|action| self.minimax(state, action, completed_depth + 1) >= worst_allowed)
             .map(|action| Some(action))
             .collect();
-        if completed_depth == 0 {
-            actions.push(None);
-        }
         actions
     }
 

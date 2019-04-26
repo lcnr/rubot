@@ -13,7 +13,7 @@ const ALLOWED_ACTIONS_DEPTH_ZERO: Node = Node::root().children(&[
 
 #[test]
 fn allowed_actions_depth_zero() {
-    const EXPECTED: &[Option<usize>] = &[None, Some(1), Some(2)];
+    const EXPECTED: &[Option<usize>] = &[Some(1), Some(2)];
 
     let mut actual = Brute::new(true).allowed_actions(&ALLOWED_ACTIONS_DEPTH_ZERO, 0);
     assert_eq!(EXPECTED.len(), actual.len(), "actual: {:?}", actual);
