@@ -1,6 +1,7 @@
 //! This module contains a bot which simply brute forces every possible action, this bot should only be used for testing.
 use crate::Game;
 
+use std::cmp::{self, Ordering};
 use std::fmt;
 
 /// A bot which uses brute force to calculate the optimal move
@@ -58,6 +59,56 @@ impl<T: Game> Bot<T> {
         }
 
         true
+    }
+
+    /// lists all actions with a fitness at `completed_depth + 1` which is better than the worst action
+    /// of all best actions at `completed_depth`
+    pub fn allowed_actions(&mut self, state: &T, completed_depth: u32) -> Vec<Option<T::Action>> {
+        let (active, actions) = state.actions(&self.player);
+        if !active {
+            return vec![None];
+        }
+
+        let mut actions = actions.into_iter();
+
+        let mut best_actions = Vec::new();
+        let mut best = if let Some(action) = actions.next() {
+            let value = self.minimax(state, &action, completed_depth);
+            best_actions.push(action);
+            value
+        } else {
+            return vec![None];
+        };
+
+        for action in actions {
+            let new = self.minimax(state, &action, completed_depth);
+            match new.cmp(&best) {
+                Ordering::Equal => best_actions.push(action),
+                Ordering::Greater => {
+                    best_actions.clear();
+                    best_actions.push(action)
+                }
+                Ordering::Less => (),
+            }
+        }
+
+        let worst_allowed = best_actions
+            .into_iter()
+            .map(|action| self.minimax(state, &action, completed_depth + 1))
+            .min()
+            .unwrap();
+
+        let mut actions: Vec<_> = state
+            .actions(&self.player)
+            .1
+            .into_iter()
+            .filter(|action| self.minimax(state, action, completed_depth + 1) >= worst_allowed)
+            .map(|action| Some(action))
+            .collect();
+        if completed_depth == 0 {
+            actions.push(None);
+        }
+        actions
     }
 
     fn minimax(&mut self, state: &T, action: &T::Action, depth: u32) -> T::Fitness {
