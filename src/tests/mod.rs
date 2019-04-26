@@ -3,6 +3,7 @@ use crate::{Bot, Game};
 use std::fmt::{self, Debug, Formatter};
 use std::ops::Range;
 
+mod brute;
 mod completed;
 mod partial;
 

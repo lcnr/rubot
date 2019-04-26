@@ -86,7 +86,8 @@ impl<T: Game> Bot<T> {
                 Ordering::Equal => best_actions.push(action),
                 Ordering::Greater => {
                     best_actions.clear();
-                    best_actions.push(action)
+                    best_actions.push(action);
+                    best = new;
                 }
                 Ordering::Less => (),
             }
