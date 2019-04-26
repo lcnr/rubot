@@ -4,9 +4,8 @@
 //! It is required to implement the trait [`Game`][game] to use this crate.
 //! For more details, look at the [trait documentation][game] or visit the [examples directory][ex].
 //!
-//! While this crate will probably have many different kind of bots in the future, there is currently only one: [`alpha_beta`][ab].
-//!
-//! This bot uses an optimized version of [alpha beta pruning][ab_wiki] with [iterative deepening][id].
+//! While this crate will probably have many different kind of bots in the future, there is currently only one: [`alpha_beta`][ab],
+//! which uses an optimized version of [alpha beta pruning][ab_wiki] with [iterative deepening][id].
 //!
 //! [id]:https://en.wikipedia.org/wiki/Iterative_deepening_depth-first_search
 //! [ab_wiki]:https://en.wikipedia.org/wiki/Alpha%E2%80%93beta_pruning
@@ -23,8 +22,8 @@ pub mod brute;
 mod tests;
 
 use std::cmp::PartialEq;
-use std::time::{Duration, Instant};
 use std::ops::Drop;
+use std::time::{Duration, Instant};
 
 /// An interface required to interact with [`GameBot`s][bot].
 ///
@@ -200,6 +199,8 @@ where
 }
 
 /// Can be converted into [`RunCondition`][rc] which returns `true` for the first `self.0` steps.
+/// This should only be used for debugging and testing as unlike `Duration`, `ToCompletion` or `Depth`,
+/// the total amount of steps is not a useful metric.
 ///
 /// [rc]: trait.RunCondition.html
 #[derive(Clone, Copy, Debug)]
@@ -289,7 +290,7 @@ impl RunCondition for ToCompletion {
 /// A struct implementing [`RunCondition`][rc] returning `false` once the current depth is bigger than `self.0`.
 ///
 /// # Examples
-/// 
+///
 /// ```rust
 /// # use rubot::{Bot, tree::Node, Depth};
 /// const TREE: Node = Node::root().children(&[
@@ -299,10 +300,10 @@ impl RunCondition for ToCompletion {
 ///     ]),
 ///     Node::new(false, 5).children(&[
 ///         Node::new(true, 8),
-///         Node::new(true, 9) 
+///         Node::new(true, 9)
 ///     ]),
 /// ]);
-/// 
+///
 /// let mut bot = Bot::new(true);
 /// assert_eq!(bot.select(&TREE, Depth(0)), Some(0));
 /// assert_eq!(bot.select(&TREE, Depth(1)), Some(1));
@@ -323,9 +324,9 @@ impl RunCondition for Depth {
     }
 }
 
-/// A struct implementing [`IntoRunCondition`] which logs how many `steps` were taken, 
+/// A struct implementing [`IntoRunCondition`] which logs how many `steps` were taken,
 /// the deepest completed depth and the total time of the last call to [`fn select`][sel].
-/// 
+///
 /// [sel]: alpha_beta/struct.Bot.html#method.select
 pub struct Logger<T: IntoRunCondition> {
     condition: T::RunCondition,

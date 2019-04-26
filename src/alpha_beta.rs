@@ -346,10 +346,13 @@ where
 }
 
 /// A game bot which analyses its moves using alpha beta pruning with iterative deepening. In case [`select`][sel] terminates
-/// after less than `duration`, the result is always the best possible move. While this bot does cache some data
-/// during computation, it does not require a lot of memory and does not store anything between different [`select`][sel] calls.
+/// before `condition` returned true, the result is always the best possible move. While this bot caches some data
+/// during computation, it does not require a lot of memory and will not store anything between different [`select`][sel] calls.
 ///
-/// [sel]:trait.GameBot.html#tymethod.select
+/// This bot requires [`Game`][game] to be implemented for your game.
+///
+/// [sel]: trait.GameBot.html#tymethod.select
+/// [game]: ../trait.Game.html
 pub struct Bot<T: Game> {
     player: T::Player,
 }
@@ -365,6 +368,37 @@ impl<T: Game> Bot<T> {
     /// In case no `Action` is possible or the bot is currently not the active player, this functions returns `None`.
     /// This method runs until either the best possible action was found
     /// or one of `fn RunCondition::depth` and `fn RunCondition::step` returned `false`.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rubot::{Bot, ToCompletion, tree::Node};
+    /// use std::time::Duration;
+    ///
+    /// const TREE: Node = Node::root().children(&[
+    ///     Node::new(false, 7).children(&[
+    ///         Node::new(true, 4),
+    ///         Node::new(true, 2),
+    ///     ]),
+    ///     Node::new(false, 5).children(&[
+    ///         Node::new(true, 8),
+    ///         Node::new(true, 9)
+    ///     ]),
+    ///     Node::new(false, 6),
+    /// ]);
+    ///
+    /// let mut bot = Bot::new(true);
+    ///
+    /// // finds the best possible action
+    /// let best = bot.select(&TREE, ToCompletion);
+    /// // searches for at most 2 seconds and returns the best answer found.
+    /// // As 2 seconds are more than enough for this simple tree, this will
+    /// // return with the best possible action without spending this much time
+    /// let limited = bot.select(&TREE, Duration::from_secs(2));
+    ///
+    /// assert_eq!(best, Some(1));
+    /// assert_eq!(limited, Some(1));
+    /// ```
     pub fn select<U: IntoRunCondition>(&mut self, state: &T, condition: U) -> Option<T::Action> {
         let mut condition = condition.into_run_condition();
 
@@ -434,7 +468,9 @@ impl<T: Game> Bot<T> {
                     depth,
                     &mut condition,
                 ) {
-                    RateAction::Cancelled(_action) => return current_best(terminated, best_action),
+                    RateAction::Cancelled(action) => {
+                        return current_best(terminated, best_action).or(Some(action))
+                    }
                     RateAction::NewBest(new) => {
                         best_action
                             .replace(new)

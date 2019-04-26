@@ -358,10 +358,7 @@ mod tests {
 
         let mut opponent = Bot::new(Piece::O);
         let mut logger = Logger::new(ToCompletion);
-        assert_eq!(
-            opponent.select(&game, &mut logger).unwrap(),
-            Action(1, 1)
-        );
+        assert_eq!(opponent.select(&game, &mut logger).unwrap(), Action(1, 1));
         assert!(logger.duration() < Duration::from_secs(1));
     }
 }
