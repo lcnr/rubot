@@ -245,10 +245,11 @@ impl IntoRunCondition for Duration {
     }
 }
 
-/// A condition which indicates if the [`Bot`][bot] should keep on running.
-/// It is recommended to use [`Duration`] for nearly all use cases.
+/// A condition which indicates if a [`Bot`][bot] should keep on running.
+/// It is recommended to use [`Duration`][dur] for nearly all use cases.
 ///
 /// [bot]: alpha_beta/struct.Bot.html
+/// [dur]: https://doc.rust-lang.org/std/time/struct.Duration.html
 pub trait RunCondition {
     fn step(&mut self) -> bool;
     fn depth(&mut self, depth: u32) -> bool;
@@ -270,6 +271,8 @@ impl RunCondition for Instant {
 /// A struct implementing [`RunCondition`][rc] which always returns `true`.
 ///
 /// This means that the bot will run until the best action was found with certainty.
+/// 
+/// # Examples
 ///
 /// ```rust
 /// # use rubot::{Bot, tree::Node, ToCompletion};

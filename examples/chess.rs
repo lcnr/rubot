@@ -14,12 +14,10 @@ impl rubot::Game for Chess {
     type Actions = MoveList;
     type Fitness = i32;
 
-    /// Returns all currently possible actions and if they are executed by the given `player`
     fn actions(&self, player: &Self::Player) -> (bool, Self::Actions) {
         (*player == self.0.turn(), self.0.legals())
     }
 
-    /// Execute a given `action`, returning the new `fitness` for the given `player`
     fn execute(&mut self, action: &Self::Action, player: &Self::Player) -> Self::Fitness {
         self.0.play_unchecked(action);
 

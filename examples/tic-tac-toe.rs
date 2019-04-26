@@ -304,7 +304,6 @@ impl rubot::Game for Game {
     type Actions = Vec<Action>;
     type Fitness = i32;
 
-    /// Returns all currently possible actions and if they are executed by the given `player`
     fn actions(&self, player: &Self::Player) -> (bool, Self::Actions) {
         let mut actions = Vec::new();
         if !self.is_finished() {
@@ -319,7 +318,6 @@ impl rubot::Game for Game {
         (*player == self.current_piece(), actions)
     }
 
-    /// Execute a given `action`, returning the new `fitness` for the given `player`
     fn execute(&mut self, action: &Self::Action, player: &Self::Player) -> Self::Fitness {
         match self.make_move(action.0, action.1) {
             Ok(()) => (),
