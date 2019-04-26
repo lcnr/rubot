@@ -5,11 +5,11 @@ use std::cmp::{self, Ordering};
 use std::fmt;
 
 /// A bot which uses brute force to calculate the optimal move
-pub struct Bot<T: Game> {
+pub struct Brute<T: Game> {
     player: T::Player,
 }
 
-impl<T: Game> Bot<T> {
+impl<T: Game> Brute<T> {
     pub fn new(player: T::Player) -> Self {
         Self { player }
     }
@@ -126,7 +126,7 @@ impl<T: Game> Bot<T> {
     }
 }
 
-impl<T: Game> Bot<T>
+impl<T: Game> Brute<T>
 where
     T::Fitness: fmt::Debug,
     T::Action: fmt::Debug,

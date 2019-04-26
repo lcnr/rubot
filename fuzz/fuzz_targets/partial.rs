@@ -13,7 +13,7 @@ use std::convert::TryInto;
 use std::num::Wrapping;
 use std::ops::Range;
 
-use rubot::{brute::Bot as Brute, Bot, Game, Logger, Steps, Depth, ToCompletion};
+use rubot::{brute::Brute, Bot, Depth, Game, Logger, Steps, ToCompletion};
 use std::fmt::{self, Debug, Formatter};
 
 struct XorShiftRng {
@@ -155,8 +155,7 @@ fuzz_target!(|data: &[u8]| {
         for i in 0..max_depth {
             let mut logger = Logger::new(Depth(i));
             let selected = Bot::new(true).select(&node, &mut logger);
-            if !Brute::new(true).is_best(&node, selected.as_ref(), i)
-            {
+            if !Brute::new(true).is_best(&node, selected.as_ref(), i) {
                 println!(
                     "Error with node: {:?}. Expected: {:?}, Actual: {:?}, Depth: {}",
                     node,

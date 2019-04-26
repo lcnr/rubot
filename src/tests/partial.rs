@@ -1,12 +1,11 @@
 //! tests where the Bot is interrupted during computation
 use super::*;
-use crate::{Depth, Steps};
 
 #[rustfmt::skip]
 const FUZZ_ONE: Node = Node::root().children(&[
     Node::new(true, -1),
     Node::new(true, 65).children(&[
-        Node::new(false, 0)
+        Node::new(false, 0),
     ]),
     Node::new(true, 11),
 ]);
@@ -25,7 +24,11 @@ fn fuzz_one() {
     );
 }
 
-const FUZZ_TWO: Node = Node::root().children(&[Node::new(true, 0), Node::new(true, 0)]);
+#[rustfmt::skip]
+const FUZZ_TWO: Node = Node::root().children(&[
+    Node::new(true, 0),
+    Node::new(true, 0),
+]);
 
 /// `select` should always return `Some` if there is a possible action
 #[test]

@@ -1,6 +1,5 @@
 //! tests where the Bot completely analyses the tree and should select the best action
 use super::*;
-use crate::ToCompletion;
 
 #[rustfmt::skip]
 const EMPTY: Node = Node::root();
@@ -16,7 +15,7 @@ fn empty() {
 const DEPTH_ONE: Node = Node::root().children(&[
         Node::new(true, 0),
         Node::new(true, 2),
-        Node::new(true, 1)
+        Node::new(true, 1),
     ]);
 
 /// Tests if the trivial case works
@@ -29,7 +28,7 @@ fn depth_one() {
 #[rustfmt::skip]
 const DIFFERENT_DEPTHS: Node = Node::root().children(&[
     Node::new(false, 0).children(&[
-        Node::new(true, 0)
+        Node::new(true, 0),
     ]),
     Node::new(false, 1),
 ]);
@@ -48,14 +47,14 @@ fn different_depths() {
 const ALPHA_REUSE: Node = Node::root().children(&[
     Node::new(false, 0).children(&[
         Node::new(false, 5).children(&[
-            Node::new(true, 3)
-        ])
+            Node::new(true, 3),
+        ]),
     ]),
     Node::new(false, 1).children(&[
         Node::new(false, 6).children(&[
             Node::new(true, 4),
-            Node::new(true, 2)
-        ])
+            Node::new(true, 2),
+        ]),
     ]),
 ]);
 
@@ -71,21 +70,21 @@ const PREMATURE_TERMINATION: Node = Node::root().children(&[
     Node::new(false, 0).children(&[
         Node::new(false, 0).children(&[
             Node::new(false, 0).children(&[
-                Node::new(false, 0)
-            ])
-        ])
+                Node::new(false, 0),
+            ]),
+        ]),
     ]),
     Node::new(false, 0).children(&[
         Node::new(true, 5).children(&[
             Node::new(true, 5).children(&[
-                Node::new(true, 3)
-            ])
-        ])
+                Node::new(true, 3),
+            ]),
+        ]),
     ]),
     Node::new(false, 0).children(&[
         Node::new(false, 4),
         Node::new(false, 2).children(&[
-            Node::new(false, 2)
+            Node::new(false, 2),
         ]),
     ]),
 ]);
@@ -118,13 +117,13 @@ const FUZZ_ONE: Node = Node::root().children(&[
         Node::new(false, 0).children(&[
             Node::new(true, 2).children(&[
                 Node::new(true, 3).children(&[
-                    Node::new(true, 0)
-                ])
+                    Node::new(true, 0),
+                ]),
             ]),
         ]),
     ]),
     // fitness: 0
-    Node::new(true, 0)
+    Node::new(true, 0),
 ]);
 
 /// The world is weird.
@@ -139,9 +138,9 @@ const FUZZ_TWO: Node = Node::root().children(&[
     Node::new(true, 74).children(&[
         Node::new(true, 2).children(&[
             Node::new(false, 1).children(&[
-                Node::new(false, -119)
+                Node::new(false, -119),
             ]),
-            Node::new(true, 42)
+            Node::new(true, 42),
         ]),
     ]),
     // fitness 0
@@ -154,7 +153,8 @@ const FUZZ_TWO: Node = Node::root().children(&[
     ]),
 ]);
 
-/// error due to incorrect interpretation of the exact cutoff in [1][0][1]
+/// error due to incorrect interpretation of the cutoff
+/// in [1][0][1]
 #[test]
 fn fuzz_two() {
     assert_eq!(Bot::new(true).select(&FUZZ_TWO, ToCompletion), Some(0));

@@ -7,7 +7,7 @@ use std::convert::TryInto;
 use std::num::Wrapping;
 use std::ops::Range;
 
-use rubot::{brute::Bot as Brute, Bot, Game, ToCompletion};
+use rubot::{brute::Brute, Bot, Game, ToCompletion};
 use std::fmt::{self, Debug, Formatter};
 
 struct XorShiftRng {

@@ -1,6 +1,6 @@
 //! testing tests, deep!
 use super::*;
-use crate::brute::Bot as Brute;
+use crate::brute::Brute;
 
 #[rustfmt::skip]
 const ALLOWED_ACTIONS_DEPTH_ZERO: Node = Node::root().children(&[

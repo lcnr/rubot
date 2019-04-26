@@ -344,7 +344,7 @@ impl RunCondition for Depth {
 /// the deepest completed depth and the total time of the last call to [`fn select`][sel].
 ///
 /// # Examples
-/// 
+///
 /// ```rust
 /// # use rubot::{Bot, tree::Node, ToCompletion, Logger};
 /// # use std::time::Duration;
@@ -362,7 +362,7 @@ impl RunCondition for Depth {
 /// let mut bot = Bot::new(true);
 /// let mut logger = Logger::new(ToCompletion);
 /// assert_eq!(bot.select(&TREE, &mut logger), Some(1));
-/// 
+///
 /// assert_eq!(logger.depth(), 1);
 /// // the total duration of `bot.select`
 /// assert!(logger.duration() < Duration::from_secs(1));
