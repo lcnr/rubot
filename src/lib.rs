@@ -21,6 +21,7 @@ pub mod brute;
 #[cfg(test)]
 mod tests;
 
+use std::cmp;
 use std::cmp::PartialEq;
 use std::time::{Duration, Instant};
 
@@ -153,10 +154,10 @@ pub trait Game: Clone {
 }
 
 /// Converts a type into a [`RunCondition`][rc].
+/// It is recommended to mostly use [`Duration`][dur] .
 ///
 /// # Examples
 ///
-/// [`Duration`][dur]
 /// ```rust
 /// # struct Game;
 /// # struct Bot;
@@ -175,14 +176,12 @@ pub trait Game: Clone {
 /// # Bot;
 /// assert!(bot.select(&game, available_time).is_some())
 /// ```
-///
-///
 /// [rc]: trait.RunCondition.html
 /// [dur]: https://doc.rust-lang.org/std/time/struct.Duration.html
 pub trait IntoRunCondition {
     type RunCondition: RunCondition;
 
-    /// consumes `self` and returns a [`RunCondition`][rc].
+    /// consumes `self` and returns a `RunCondition`.
     ///
     /// [rc]: trait.RunCondition.html
     fn into_run_condition(self) -> Self::RunCondition;
@@ -246,7 +245,7 @@ impl IntoRunCondition for Duration {
 
 /// A condition which indicates if the [`Bot`][bot] should keep on running.
 /// It is recommended to use [`Duration`] for nearly all use cases.
-/// 
+///
 /// [bot]: alpha_beta/struct.Bot.html
 pub trait RunCondition {
     fn step(&mut self) -> bool;
@@ -287,7 +286,7 @@ impl RunCondition for ToCompletion {
 }
 
 /// A struct implementing [`RunCondition`][rc] returning `false` once the current depth is bigger than `self.0`.
-/// 
+///
 /// [rc]: trait.RunCondition.html
 #[derive(Clone, Copy, Debug)]
 pub struct Depth(pub u32);
@@ -301,6 +300,59 @@ impl RunCondition for Depth {
     #[inline]
     fn depth(&mut self, depth: u32) -> bool {
         self.0 > depth
+    }
+}
+
+/// A struct implementing [`IntoRunCondition`] which logs how many `steps` were taken and deepest completed depth.
+pub struct Logger<T: IntoRunCondition> {
+    condition: T::RunCondition,
+    steps: u32,
+    depth: u32,
+}
+
+impl<T: IntoRunCondition> Logger<T> {
+    /// Creates a new `Logger` wrapping `condition`.
+    pub fn new(condition: T) -> Self {
+        Self {
+            condition: condition.into_run_condition(),
+            steps: 0,
+            depth: 0,
+        }
+    }
+
+    /// returns the total amount of times [`fn step`][step] was called during the last call to [`fn select`][sel].
+    ///
+    /// [step]: trait.RunCondition.html#tymethod.step
+    /// [sel]: alpha_beta/struct.Bot.html#method.select
+    pub fn steps(&self) -> u32 {
+        self.steps
+    }
+
+    /// returns the deepest completed depth of the last call to [`fn select`][sel].
+    ///
+    /// [sel]: alpha_beta/struct.Bot.html#method.select
+    pub fn depth(&self) -> u32 {
+        self.depth
+    }
+
+    /// consumes `self` and returns the wrapped `condition`
+    pub fn into_inner(self) -> T::RunCondition {
+        self.condition
+    }
+}
+
+impl<'a, T: IntoRunCondition> RunCondition for &'a mut Logger<T> {
+    fn step(&mut self) -> bool {
+        self.steps += 1;
+        self.condition.step()
+    }
+
+    fn depth(&mut self, depth: u32) -> bool {
+        if depth == 0 {
+            self.steps = 0;
+        }
+        self.depth = depth;
+        self.condition.depth(depth)
     }
 }
 
