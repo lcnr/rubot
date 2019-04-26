@@ -16,7 +16,7 @@ use std::ops::Range;
 use rubot::{brute::Bot as Brute, Bot, Game, Logger, Steps, Depth, ToCompletion};
 use std::fmt::{self, Debug, Formatter};
 
-pub struct XorShiftRng {
+struct XorShiftRng {
     x: Wrapping<u32>,
     y: Wrapping<u32>,
     z: Wrapping<u32>,
