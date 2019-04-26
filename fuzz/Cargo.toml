@@ -19,3 +19,7 @@ members = ["."]
 [[bin]]
 name = "to_completion"
 path = "fuzz_targets/to_completion.rs"
+
+[[bin]]
+name = "partial"
+path = "fuzz_targets/partial.rs"

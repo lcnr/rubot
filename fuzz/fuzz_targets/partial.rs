@@ -1,3 +1,9 @@
+//! runs `fn select` with a `RunCondition`.
+//!
+//! The returned action should either be the best action of the last completed depth
+//! or have a fitness at the interrupted depth which is better than the fitness of the
+//! previously best action.
+
 #![no_main]
 #[macro_use]
 extern crate libfuzzer_sys;
@@ -7,7 +13,7 @@ use std::convert::TryInto;
 use std::num::Wrapping;
 use std::ops::Range;
 
-use rubot::{brute::Bot as Brute, Bot, Game, ToCompletion};
+use rubot::{brute::Bot as Brute, Bot, Game, Logger, Steps, ToCompletion};
 use std::fmt::{self, Debug, Formatter};
 
 pub struct XorShiftRng {
@@ -119,16 +125,31 @@ impl Node {
 fuzz_target!(|data: &[u8]| {
     if data.len() >= 4 {
         let node = Node::from_bytes(data);
-        let selected = Bot::new(true).select(&node, ToCompletion);
-        let is_best = Brute::new(true).is_best(&node, selected.as_ref());
-        if !is_best {
-            println!(
-                "Error with node: {:?}. Expected: {:?}, Actual: {:?}",
-                node,
-                Brute::new(true).select(&node, std::u32::MAX),
-                selected
-            );
-            panic!();
+
+        let max_steps = {
+            let mut logger = Logger::new(ToCompletion);
+            Bot::new(true).select(&node, &mut logger);
+            logger.steps()
+        };
+
+        for i in 0..max_steps {
+            let mut logger = Logger::new(Steps(i));
+            let selected = Bot::new(true).select(&node, &mut logger);
+            if !Brute::new(true)
+                .allowed_actions(&node, logger.depth())
+                .into_iter()
+                .find(|a| *a == selected)
+                .is_some()
+            {
+                println!(
+                    "Error with node: {:?}. Expected: {:?}, Actual: {:?}, Steps: {}",
+                    node,
+                    Brute::new(true).allowed_actions(&node, logger.depth()),
+                    selected,
+                    i
+                );
+                panic!();
+            }
         }
     }
 });
