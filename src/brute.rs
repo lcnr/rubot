@@ -38,7 +38,7 @@ impl<T: Game> Brute<T> {
         Some(best.0)
     }
 
-    pub fn is_best(&mut self, state: &T, best: Option<&T::Action>, depth: u32) -> bool {
+    pub fn check_if_best(&mut self, state: &T, best: Option<&T::Action>, depth: u32) -> bool {
         let (active, actions) = state.actions(&self.player);
         if !active {
             return best.is_none();
@@ -104,7 +104,7 @@ impl<T: Game> Brute<T> {
             .1
             .into_iter()
             .filter(|action| self.minimax(state, action, completed_depth + 1) >= worst_allowed)
-            .map(|action| Some(action))
+            .map(Some)
             .collect();
         actions
     }

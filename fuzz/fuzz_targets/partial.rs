@@ -155,7 +155,7 @@ fuzz_target!(|data: &[u8]| {
         for i in 0..max_depth {
             let mut logger = Logger::new(Depth(i));
             let selected = Bot::new(true).select(&node, &mut logger);
-            if !Brute::new(true).is_best(&node, selected.as_ref(), i) {
+            if !Brute::new(true).check_if_best(&node, selected.as_ref(), i) {
                 println!(
                     "Error with node: {:?}. Expected: {:?}, Actual: {:?}, Depth: {}",
                     node,

@@ -291,7 +291,7 @@ impl<T: Game> Terminated<T> {
     fn add_complete(&mut self, action: T::Action, fitness: T::Fitness) {
         if self.best_fitness().map_or(true, |best| best < fitness) {
             self.best_action = Some((action, fitness));
-            self.partial.retain(|(_a, f)| f > &fitness);
+            self.partial.retain(|(_a, f)| *f > fitness);
         }
     }
 
@@ -472,9 +472,9 @@ impl<T: Game> Bot<T> {
                         return current_best(terminated, best_action).or(Some(action))
                     }
                     RateAction::NewBest(new) => {
-                        best_action
-                            .replace(new)
-                            .map(|prev| actions.push(prev.action));
+                        if let Some(prev_best) = best_action.replace(new) {
+                            actions.push(prev_best.action)
+                        }
                     }
                     RateAction::Worse(action) => actions.push(action),
                     RateAction::Terminated => (),
@@ -499,9 +499,9 @@ impl<T: Game> Bot<T> {
                 ) {
                     RateAction::Cancelled(_action) => return current_best(terminated, best_action),
                     RateAction::NewBest(new) => {
-                        best_action
-                            .replace(new)
-                            .map(|prev| actions.push(prev.action));
+                        if let Some(prev_best) = best_action.replace(new) {
+                            actions.push(prev_best.action)
+                        }
                     }
                     RateAction::Worse(action) => actions.push(action),
                     RateAction::Terminated => (),
@@ -592,9 +592,8 @@ impl<T: Game> Bot<T> {
                 actions.min_by_key(|(_, fitness)| *fitness)
             };
 
-            Ok(selected
-                .map(|(action, fitness)| MiniMax::Open(vec![action], Branch::Equal(fitness)))
-                .unwrap_or(MiniMax::DeadEnd))
+            Ok(selected.map_or(MiniMax::DeadEnd, 
+            |(action, fitness)| MiniMax::Open(vec![action], Branch::Equal(fitness)))
         } else {
             let (active, actions) = game_state.actions(&self.player);
             let mut states: Vec<_> = actions
@@ -608,11 +607,11 @@ impl<T: Game> Bot<T> {
                 .collect();
 
             states.sort_unstable_by_key(|(_, _, fitness)| *fitness);
-            path.pop().map(|action| {
+            if let Some(action) = path.pop() {
                 let mut game_state = game_state.clone();
                 let fitness = game_state.execute(&action, &self.player);
                 states.push((game_state, action, fitness))
-            });
+            }
 
             if states.is_empty() {
                 return Ok(MiniMax::DeadEnd);
