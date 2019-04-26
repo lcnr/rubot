@@ -15,7 +15,7 @@ use std::ops::Range;
 /// use rubot::{Bot, ToCompletion, tree::Node};
 ///
 /// # #[rustfmt::skip]
-/// const tree: Node = Node::root().children(&[
+/// const TREE: Node = Node::root().children(&[
 ///     Node::new(false, 4),
 ///     Node::new(false, 7).children(&[
 ///         Node::new(true, 5),
@@ -23,8 +23,8 @@ use std::ops::Range;
 ///     ])
 /// ]);
 ///
-/// let mut bot = rubot::Bot::new(true);
-/// assert_eq!(bot.select(&tree, ToCompletion), Some(0));
+/// let mut bot = Bot::new(true);
+/// assert_eq!(bot.select(&TREE, ToCompletion), Some(0));
 /// ```
 /// [game]: ../trait.Game.html
 #[derive(Clone, PartialEq, Eq)]

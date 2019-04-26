@@ -288,6 +288,25 @@ impl RunCondition for ToCompletion {
 
 /// A struct implementing [`RunCondition`][rc] returning `false` once the current depth is bigger than `self.0`.
 ///
+/// # Examples
+/// 
+/// ```rust
+/// # use rubot::{Bot, tree::Node, Depth};
+/// const TREE: Node = Node::root().children(&[
+///     Node::new(false, 7).children(&[
+///         Node::new(true, 4),
+///         Node::new(true, 2),
+///     ]),
+///     Node::new(false, 5).children(&[
+///         Node::new(true, 8),
+///         Node::new(true, 9) 
+///     ]),
+/// ]);
+/// 
+/// let mut bot = Bot::new(true);
+/// assert_eq!(bot.select(&TREE, Depth(0)), Some(0));
+/// assert_eq!(bot.select(&TREE, Depth(1)), Some(1));
+/// ```
 /// [rc]: trait.RunCondition.html
 #[derive(Clone, Copy, Debug)]
 pub struct Depth(pub u32);
@@ -304,7 +323,10 @@ impl RunCondition for Depth {
     }
 }
 
-/// A struct implementing [`IntoRunCondition`] which logs how many `steps` were taken and deepest completed depth.
+/// A struct implementing [`IntoRunCondition`] which logs how many `steps` were taken, 
+/// the deepest completed depth and the total time of the last call to [`fn select`][sel].
+/// 
+/// [sel]: alpha_beta/struct.Bot.html#method.select
 pub struct Logger<T: IntoRunCondition> {
     condition: T::RunCondition,
     steps: u32,
