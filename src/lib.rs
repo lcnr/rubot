@@ -199,8 +199,8 @@ where
 }
 
 /// Can be converted into [`RunCondition`][rc] which returns `true` for the first `self.0` steps.
-/// This should only be used for debugging and testing as unlike `Duration`, `ToCompletion` or `Depth`,
-/// the total amount of steps is not a useful metric.
+/// This should only be used for debugging and testing as unlike `Duration`, `ToCompletion` or `Depth` as
+/// the total amount of steps needed is not directly indicative of search depth and can change between minor versions.
 ///
 /// [rc]: trait.RunCondition.html
 #[derive(Clone, Copy, Debug)]
@@ -271,6 +271,22 @@ impl RunCondition for Instant {
 ///
 /// This means that the bot will run until the best action was found with certainty.
 ///
+/// ```rust
+/// # use rubot::{Bot, tree::Node, ToCompletion};
+/// const TREE: Node = Node::root().children(&[
+///     Node::new(false, 7).children(&[
+///         Node::new(true, 4),
+///         Node::new(true, 2),
+///     ]),
+///     Node::new(false, 5).children(&[
+///         Node::new(true, 8),
+///         Node::new(true, 9)
+///     ]),
+/// ]);
+///
+/// let mut bot = Bot::new(true);
+/// assert_eq!(bot.select(&TREE, ToCompletion), Some(1));
+/// ```
 /// [rc]: trait.RunCondition.html
 #[derive(Clone, Copy, Debug)]
 pub struct ToCompletion;
@@ -327,6 +343,30 @@ impl RunCondition for Depth {
 /// A struct implementing [`IntoRunCondition`] which logs how many `steps` were taken,
 /// the deepest completed depth and the total time of the last call to [`fn select`][sel].
 ///
+/// # Examples
+/// 
+/// ```rust
+/// # use rubot::{Bot, tree::Node, ToCompletion, Logger};
+/// # use std::time::Duration;
+/// const TREE: Node = Node::root().children(&[
+///     Node::new(false, 7).children(&[
+///         Node::new(true, 4),
+///         Node::new(true, 2),
+///     ]),
+///     Node::new(false, 5).children(&[
+///         Node::new(true, 8),
+///         Node::new(true, 9)
+///     ]),
+/// ]);
+///
+/// let mut bot = Bot::new(true);
+/// let mut logger = Logger::new(ToCompletion);
+/// assert_eq!(bot.select(&TREE, &mut logger), Some(1));
+/// 
+/// assert_eq!(logger.depth(), 1);
+/// // the total duration of `bot.select`
+/// assert!(logger.duration() < Duration::from_secs(1));
+/// ```
 /// [sel]: alpha_beta/struct.Bot.html#method.select
 pub struct Logger<T: IntoRunCondition> {
     condition: T::RunCondition,
