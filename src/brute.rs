@@ -38,7 +38,7 @@ impl<T: Game> Bot<T> {
         Some(best.0)
     }
 
-    pub fn is_best(&mut self, state: &T, best: Option<&T::Action>) -> bool {
+    pub fn is_best(&mut self, state: &T, best: Option<&T::Action>, depth: u32) -> bool {
         let (active, actions) = state.actions(&self.player);
         if !active {
             return best.is_none();
@@ -49,10 +49,10 @@ impl<T: Game> Bot<T> {
             return actions.next().is_none();
         }
 
-        let mut best = self.minimax(state, best.unwrap(), std::u32::MAX);
+        let mut best = self.minimax(state, best.unwrap(), depth);
 
         for action in actions {
-            let new = self.minimax(state, &action, std::u32::MAX);
+            let new = self.minimax(state, &action, depth);
             if new > best {
                 return false;
             }

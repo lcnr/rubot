@@ -155,14 +155,10 @@ fuzz_target!(|data: &[u8]| {
         for i in 0..max_depth {
             let mut logger = Logger::new(Depth(i));
             let selected = Bot::new(true).select(&node, &mut logger);
-            if !Brute::new(true)
-                .allowed_actions(&node, logger.depth())
-                .into_iter()
-                .find(|a| *a == selected)
-                .is_some()
+            if !Brute::new(true).is_best(&node, selected.as_ref(), i)
             {
                 println!(
-                    "Error with node: {:?}. Expected: {:?}, Actual: {:?}, Steps: {}",
+                    "Error with node: {:?}. Expected: {:?}, Actual: {:?}, Depth: {}",
                     node,
                     Brute::new(true).allowed_actions(&node, logger.depth()),
                     selected,
