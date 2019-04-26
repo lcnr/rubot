@@ -21,7 +21,6 @@ pub mod brute;
 #[cfg(test)]
 mod tests;
 
-use std::cmp;
 use std::cmp::PartialEq;
 use std::time::{Duration, Instant};
 
