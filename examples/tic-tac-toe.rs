@@ -349,7 +349,7 @@ impl rubot::Game for Game {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rubot::Bot;
+    use rubot::{Bot, Logger, ToCompletion};
 
     #[test]
     fn first_pos() {
@@ -357,9 +357,11 @@ mod tests {
         game.make_move(0, 0).unwrap();
 
         let mut opponent = Bot::new(Piece::O);
+        let mut logger = Logger::new(ToCompletion);
         assert_eq!(
-            opponent.select(&game, Duration::from_secs(1)).unwrap(),
+            opponent.select(&game, &mut logger).unwrap(),
             Action(1, 1)
         );
+        assert!(logger.duration() < Duration::from_secs(1));
     }
 }

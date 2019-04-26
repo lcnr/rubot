@@ -24,6 +24,7 @@ mod tests;
 
 use std::cmp::PartialEq;
 use std::time::{Duration, Instant};
+use std::ops::Drop;
 
 /// An interface required to interact with [`GameBot`s][bot].
 ///
@@ -308,6 +309,7 @@ pub struct Logger<T: IntoRunCondition> {
     condition: T::RunCondition,
     steps: u32,
     depth: u32,
+    duration: Duration,
 }
 
 impl<T: IntoRunCondition> Logger<T> {
@@ -317,6 +319,7 @@ impl<T: IntoRunCondition> Logger<T> {
             condition: condition.into_run_condition(),
             steps: 0,
             depth: 0,
+            duration: Duration::from_secs(0),
         }
     }
 
@@ -335,24 +338,51 @@ impl<T: IntoRunCondition> Logger<T> {
         self.depth
     }
 
+    /// returns the total time spend during the last call to [`fn select`][sel].
+    ///
+    /// [sel]: alpha_beta/struct.Bot.html#method.select
+    pub fn duration(&self) -> Duration {
+        self.duration
+    }
+
     /// consumes `self` and returns the wrapped `condition`
     pub fn into_inner(self) -> T::RunCondition {
         self.condition
     }
 }
 
-impl<'a, T: IntoRunCondition> RunCondition for &'a mut Logger<T> {
+/// The [`RunCondition`][rc] created by `fn `[`Logger`][logger]`::into_run_condition`
+///
+/// [rc]: trait.RunCondition.html
+/// [logger]: struct.Logger.html
+#[doc(hidden)]
+pub struct InnerLogger<'a, T: IntoRunCondition>(&'a mut Logger<T>, Instant);
+
+impl<'a, T: IntoRunCondition> IntoRunCondition for &'a mut Logger<T> {
+    type RunCondition = InnerLogger<'a, T>;
+
+    fn into_run_condition(self) -> InnerLogger<'a, T> {
+        self.steps = 0;
+        self.depth = 0;
+        InnerLogger(self, Instant::now())
+    }
+}
+
+impl<'a, T: IntoRunCondition> RunCondition for InnerLogger<'a, T> {
     fn step(&mut self) -> bool {
-        self.steps += 1;
-        self.condition.step()
+        self.0.steps += 1;
+        self.0.condition.step()
     }
 
     fn depth(&mut self, depth: u32) -> bool {
-        if depth == 0 {
-            self.steps = 0;
-        }
-        self.depth = depth;
-        self.condition.depth(depth)
+        self.0.depth = depth;
+        self.0.condition.depth(depth)
+    }
+}
+
+impl<'a, T: IntoRunCondition> Drop for InnerLogger<'a, T> {
+    fn drop(&mut self) {
+        self.0.duration = self.1.elapsed();
     }
 }
 
