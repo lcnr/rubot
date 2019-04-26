@@ -289,87 +289,39 @@ fn prompt_move() -> Move {
 fn parse_move(input: &str) -> Result<Move, InvalidMove> {
     match input.len() {
         2 => {
-            let col = match &input[0..1] {
-                "A" | "a" => 0,
-                "B" | "b" => 1,
-                "C" | "c" => 2,
-                "D" | "d" => 3,
-                "E" | "e" => 4,
-                "F" | "f" => 5,
-                "G" | "g" => 6,
-                "H" | "h" => 7,
-                "I" | "i" => 8,
-                "J" | "j" => 9,
+            let col = match input.chars().nth(0).unwrap() {
+                v if v >= 'a' && v <= 'z' => v as usize - 'a' as usize,
+                v if v >= 'A' && v <= 'Z' => v as usize - 'A' as usize,
                 _ => return Err(InvalidMove(input.to_string())),
             };
 
-            let row = match &input[1..2] {
-                "1" => 0,
-                "2" => 1,
-                "3" => 2,
-                "4" => 3,
-                "5" => 4,
-                "6" => 5,
-                "7" => 6,
-                "8" => 7,
-                "9" => 8,
+            let row = match input.chars().nth(1).unwrap() {
+                v if v >= '1' && v <= '9' => v as usize - '1' as usize,
                 _ => return Err(InvalidMove(input.to_string())),
             };
 
             Ok(Move::Long(row, col))
         }
         4 => {
-            let b = match &input[0..1] {
-                "A" | "a" => 0,
-                "B" | "b" => 1,
-                "C" | "c" => 2,
-                "D" | "d" => 3,
-                "E" | "e" => 4,
-                "F" | "f" => 5,
-                "G" | "g" => 6,
-                "H" | "h" => 7,
-                "I" | "i" => 8,
-                "J" | "j" => 9,
+            let b = match input.chars().nth(0).unwrap() {
+                v if v >= 'a' && v <= 'z' => v as usize - 'a' as usize,
+                v if v >= 'A' && v <= 'Z' => v as usize - 'A' as usize,
                 _ => return Err(InvalidMove(input.to_string())),
             };
 
-            let a = match &input[1..2] {
-                "1" => 0,
-                "2" => 1,
-                "3" => 2,
-                "4" => 3,
-                "5" => 4,
-                "6" => 5,
-                "7" => 6,
-                "8" => 7,
-                "9" => 8,
+            let a = match input.chars().nth(1).unwrap() {
+                v if v >= '1' && v <= '9' => v as usize - '1' as usize,
                 _ => return Err(InvalidMove(input.to_string())),
             };
 
-            let y = match &input[2..3] {
-                "A" | "a" => 0,
-                "B" | "b" => 1,
-                "C" | "c" => 2,
-                "D" | "d" => 3,
-                "E" | "e" => 4,
-                "F" | "f" => 5,
-                "G" | "g" => 6,
-                "H" | "h" => 7,
-                "I" | "i" => 8,
-                "J" | "j" => 9,
+            let y = match input.chars().nth(2).unwrap() {
+                v if v >= 'a' && v <= 'z' => v as usize - 'a' as usize,
+                v if v >= 'A' && v <= 'Z' => v as usize - 'A' as usize,
                 _ => return Err(InvalidMove(input.to_string())),
             };
 
-            let x = match &input[3..4] {
-                "1" => 0,
-                "2" => 1,
-                "3" => 2,
-                "4" => 3,
-                "5" => 4,
-                "6" => 5,
-                "7" => 6,
-                "8" => 7,
-                "9" => 8,
+            let x = match input.chars().nth(3).unwrap() {
+                v if v >= '1' && v <= '9' => v as usize - '1' as usize,
                 _ => return Err(InvalidMove(input.to_string())),
             };
 
