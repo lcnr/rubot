@@ -2,7 +2,7 @@
 name = "rubot"
 authors = ["lcnr/Bastian Kauschke <bastian_kauschke@hotmail.de>"]
 description = "A generic game bot written in Rust"
-keywords = ["game", "engine", "bot", "alpha beta"]
+keywords = ["game", "engine", "bot", "alpha", "beta"]
 categories = [ "algorithms", "game-engines" ]
 license = "MIT"
 exclude = ["fuzz/*"]
