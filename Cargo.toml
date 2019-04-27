@@ -1,9 +1,15 @@
 [package]
 name = "rubot"
-version = "0.1.0"
 authors = ["lcnr/Bastian Kauschke <bastian_kauschke@hotmail.de>"]
-edition = "2018"
+description = "A generic game bot written in Rust"
+keywords = ["game", "engine", "bot", "alpha beta"]
+categories = [ "algorithms", "game-engines" ]
+license = "MIT"
 exclude = ["fuzz/*"]
+repository = "https://github.com/lncr/rubot"
+version = "0.1.0"
+readme = "README.md"
+edition = "2018"
 
 [dev-dependencies]
 shakmaty = "0.14"
