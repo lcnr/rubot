@@ -20,11 +20,6 @@ which may or may not be lifted in the future.
 
 `rubot` currently requires the game to be deterministic. This prevents games where the player is missing information, like *Rock Paper Scissors* or [Durak].
 
-## TODO
-
-- publish on `crates.io`
-- allow for non deterministic games
-
 [Durak]:https://en.wikipedia.org/wiki/Durak
 [shakmaty]:https://crates.io/crates/shakmaty
 [Stockfish]:https://www.chessprogramming.org/Stockfish
