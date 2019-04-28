@@ -187,8 +187,8 @@ impl<T: Game> State<T> {
     }
 
     fn cutoff(&mut self) -> Option<MiniMax<T>> {
-        if let (Some(ref alpha), Some(ref beta)) = (self.alpha, self.beta) {
-            if alpha >= beta {
+        match (self.alpha, self.beta) {
+            (Some(ref alpha), Some(ref beta)) if alpha >= beta => {
                 let branch = if self.active {
                     Branch::Better(self.alpha.unwrap())
                 } else {
@@ -206,11 +206,8 @@ impl<T: Game> State<T> {
                         branch,
                     ))
                 }
-            } else {
-                None
             }
-        } else {
-            None
+            _ => None,
         }
     }
 
@@ -276,6 +273,7 @@ where
 
 impl<T: Game> Terminated<T> {
     /// returns all partially terminated actions which might be better than `best_fitness`
+    #[inline]
     fn relevant_partials(&mut self, best_fitness: Option<T::Fitness>) -> Vec<T::Action> {
         let mut relevant = Vec::new();
         for (action, fitness) in mem::replace(&mut self.partial, Vec::new()) {
@@ -321,6 +319,17 @@ fn current_best<T: Game>(
         (None, Some(best)) => Some(best.action),
         (None, None) => None,
     }
+}
+
+#[inline]
+fn alpha<T: Game>(
+    terminated: &Terminated<T>,
+    best_action: &Option<BestAction<T>>,
+) -> Option<T::Fitness> {
+    cmp::max(
+        best_action.as_ref().map(|best| best.fitness),
+        terminated.best_fitness(),
+    )
 }
 
 enum RateAction<T: Game> {
@@ -393,7 +402,7 @@ impl<T: Game> Bot<T> {
     /// let best = bot.select(&TREE, ToCompletion);
     /// // searches for at most 2 seconds and returns the best answer found.
     /// // As 2 seconds are more than enough for this simple tree, this will
-    /// // return with the best possible action without spending this much time
+    /// // return the best possible action without spending this much time
     /// let limited = bot.select(&TREE, Duration::from_secs(2));
     ///
     /// assert_eq!(best, Some(1));
@@ -457,10 +466,7 @@ impl<T: Game> Bot<T> {
             }
 
             for action in prev_actions.into_iter().rev() {
-                let alpha = cmp::max(
-                    best_action.as_ref().map(|best| best.fitness),
-                    terminated.best_fitness(),
-                );
+                let alpha = alpha(&terminated, &best_action);
                 match self.rate_action(
                     state,
                     action,
@@ -486,10 +492,7 @@ impl<T: Game> Bot<T> {
             for action in
                 terminated.relevant_partials(best_action.as_ref().map(|best| best.fitness))
             {
-                let alpha = cmp::max(
-                    best_action.as_ref().map(|best| best.fitness),
-                    terminated.best_fitness(),
-                );
+                let alpha = alpha(&terminated, &best_action);
                 match self.rate_action(
                     state,
                     action,
