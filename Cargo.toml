@@ -12,7 +12,12 @@ readme = "README.md"
 edition = "2018"
 
 [dev-dependencies]
+criterion = "0.2"
 shakmaty = "0.14"
+
+[[bench]]
+name = "to_completion"
+harness = false
 
 [[example]]
 name = "tic-tac-toe"
