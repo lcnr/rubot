@@ -1,4 +1,4 @@
-//! runs `fn select` with a `RunCondition`.
+//! runs `select` with a `RunCondition`.
 //!
 //! The returned action should either be the best action of the last completed depth
 //! or have a fitness at the interrupted depth which is better than the fitness of the

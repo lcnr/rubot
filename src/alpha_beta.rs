@@ -367,7 +367,7 @@ impl<T: Game> Bot<T> {
     ///
     /// In case no `Action` is possible or the bot is currently not the active player, this functions returns `None`.
     /// This method runs until either the best possible action was found
-    /// or one of `fn RunCondition::depth` and `fn RunCondition::step` returned `false`.
+    /// or one of `RunCondition::depth` and `RunCondition::step` returned `false`.
     ///
     /// # Examples
     ///

@@ -9,7 +9,7 @@
 //!
 //! # Adding `rubot` support
 //!
-//! All relevant changes were made in lines 274 to 311 as well as adding a bot opponent in `fn main`.
+//! All relevant changes were made in lines 274 to 311 as well as adding a bot opponent in `main`.
 use std::io::{self, Write};
 use std::process;
 use std::time::Duration;
