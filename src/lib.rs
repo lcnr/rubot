@@ -442,7 +442,7 @@ impl<T: IntoRunCondition> Logger<T> {
         }
     }
 
-    /// returns the total amount of times [`step`][step] was called during the last call to [`select`][sel].
+    /// Returns the total amount of times [`step`][step] was called during the last call to [`select`][sel].
     ///
     /// [step]: trait.RunCondition.html#tymethod.step
     /// [sel]: alpha_beta/struct.Bot.html#method.select
@@ -450,14 +450,14 @@ impl<T: IntoRunCondition> Logger<T> {
         self.steps
     }
 
-    /// returns the deepest completed depth of the last call to [`select`][sel].
+    /// Returns the deepest completed depth of the last call to [`select`][sel].
     ///
     /// [sel]: alpha_beta/struct.Bot.html#method.select
     pub fn depth(&self) -> u32 {
         self.depth
     }
 
-    /// returns the total time spend during the last call to [`select`][sel].
+    /// Returns the total time spend during the last call to [`select`][sel].
     ///
     /// [sel]: alpha_beta/struct.Bot.html#method.select
     pub fn duration(&self) -> Duration {
