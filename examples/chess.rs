@@ -1,6 +1,7 @@
 use std::io;
 use std::time::Duration;
 
+use rubot::prelude::*;
 use shakmaty::{uci::Uci, Color, Move, MoveList, Outcome, Position, Role, Setup};
 
 /// this example requires a newtype due to orphan rules, as both shakmaty::Chess and rubot::Game
@@ -18,11 +19,11 @@ impl rubot::Game for Chess {
         (*player == self.0.turn(), self.0.legals())
     }
 
-    fn execute(&mut self, action: &Self::Action, player: &Self::Player) -> Self::Fitness {
+    fn execute(mut self, action: &Self::Action, player: &Self::Player) -> StepResult<Self> {
         self.0.play_unchecked(action);
 
         if let Some(outcome) = self.0.outcome() {
-            match outcome {
+            StepResult::Terminated(match outcome {
                 Outcome::Draw => 0,
                 Outcome::Decisive { winner } => {
                     if winner == *player {
@@ -31,7 +32,7 @@ impl rubot::Game for Chess {
                         std::i32::MIN
                     }
                 }
-            }
+            })
         } else {
             let mut fitness = 0;
             for (_square, piece) in self.0.board().pieces() {
@@ -51,7 +52,8 @@ impl rubot::Game for Chess {
                     fitness -= value;
                 }
             }
-            fitness
+
+            StepResult::Open(self, fitness)
         }
     }
 }

@@ -295,6 +295,8 @@ fn main() {
 }
 
 // <----------------------------------------------------------------->
+use rubot::prelude::*;
+
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct Action(usize, usize);
 
@@ -302,7 +304,7 @@ impl rubot::Game for Game {
     type Player = Piece;
     type Action = Action;
     type Actions = Vec<Action>;
-    type Fitness = i32;
+    type Fitness = i8;
 
     fn actions(&self, player: &Self::Player) -> (bool, Self::Actions) {
         let mut actions = Vec::new();
@@ -318,27 +320,32 @@ impl rubot::Game for Game {
         (*player == self.current_piece(), actions)
     }
 
-    fn execute(&mut self, action: &Self::Action, player: &Self::Player) -> Self::Fitness {
-        match self.make_move(action.0, action.1) {
-            Ok(()) => (),
-            Err(e) => unreachable!("Error: {:?}", e),
+    fn execute(mut self, action: &Self::Action, player: &Self::Player) -> StepResult<Self> {
+        if let Err(e) = self.make_move(action.0, action.1) {
+            unreachable!("Error: {:?}", e)
         }
 
         match self.winner() {
-            None | Some(Winner::Tie) => 0,
-            Some(Winner::O) => {
-                if *player == Piece::O {
-                    1
-                } else {
-                    -1
-                }
-            }
-            Some(Winner::X) => {
-                if *player == Piece::X {
-                    1
-                } else {
-                    -1
-                }
+            None => StepResult::Open(self, 0),
+            Some(winner) => {
+                let res = match winner {
+                    Winner::Tie => 0,
+                    Winner::O => {
+                        if *player == Piece::O {
+                            1
+                        } else {
+                            -1
+                        }
+                    }
+                    Winner::X => {
+                        if *player == Piece::X {
+                            1
+                        } else {
+                            -1
+                        }
+                    }
+                };
+                StepResult::Terminated(res)
             }
         }
     }

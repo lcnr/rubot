@@ -1,6 +1,6 @@
 //! A deterministic game bot using alpha beta pruning.
 
-use crate::{Game, IntoRunCondition, RunCondition};
+use crate::{prelude::*, Fitness, Game, IntoRunCondition, RunCondition};
 
 use std::cmp;
 use std::fmt::{self, Debug};
@@ -273,7 +273,6 @@ where
 
 impl<T: Game> Terminated<T> {
     /// returns all partially terminated actions which might be better than `best_fitness`
-    #[inline]
     fn relevant_partials(&mut self, best_fitness: Option<T::Fitness>) -> Vec<T::Action> {
         let mut relevant = Vec::new();
         for (action, fitness) in mem::replace(&mut self.partial, Vec::new()) {
@@ -366,7 +365,11 @@ pub struct Bot<T: Game> {
     player: T::Player,
 }
 
-impl<T: Game> Bot<T> {
+impl<T: Game> Bot<T>
+where
+    T::Action: Debug,
+    T::Fitness: Debug,
+{
     /// Creates a new `Bot` for the given `player`.
     pub fn new(player: T::Player) -> Self {
         Self { player }
@@ -384,12 +387,12 @@ impl<T: Game> Bot<T> {
     /// use rubot::{Bot, ToCompletion, tree::Node};
     /// use std::time::Duration;
     ///
-    /// const TREE: Node = Node::root().children(&[
-    ///     Node::new(false, 7).children(&[
+    /// const TREE: Node = Node::root().children(vec![
+    ///     Node::new(false, 7).children(vec![
     ///         Node::new(true, 4),
     ///         Node::new(true, 2),
     ///     ]),
-    ///     Node::new(false, 5).children(&[
+    ///     Node::new(false, 5).children(vec![
     ///         Node::new(true, 8),
     ///         Node::new(true, 9)
     ///     ]),
@@ -416,18 +419,50 @@ impl<T: Game> Bot<T> {
             return None;
         }
 
-        let mut actions = actions.into_iter().collect::<Vec<_>>();
-        if actions.len() < 2 {
-            return actions.pop();
-        }
-        actions.sort_by_cached_key(|a| state.look_ahead(&a, &self.player));
-
         // the best action which already terminated
         let mut terminated = Terminated::default();
+
+        let mut actions = actions
+            .into_iter()
+            .filter_map(|action| {
+                Some((
+                    match state.look_ahead(&action, &self.player) {
+                        LookAheadResult::Open(fitness) => fitness,
+                        LookAheadResult::Terminated(fitness) => {
+                            terminated.add_complete(action, fitness);
+                            return None;
+                        }
+                    },
+                    action,
+                ))
+            })
+            .collect::<Vec<_>>();
+
+        actions.sort_by_key(|(fitness, _action)| *fitness);
+        let mut actions = actions
+            .into_iter()
+            .map(|(_fitness, action)| action)
+            .collect::<Vec<_>>();
+
+        match actions.len() {
+            0 => return terminated.best_action.map(|(action, _)| action),
+            1 => {
+                if terminated.best_action.is_none() {
+                    return actions.pop();
+                }
+            }
+            _ => (),
+        }
+
         let mut best_action: Option<BestAction<T>> = None;
         for depth in 0.. {
+            println!("depth: {}, actions: {:?}, best_action: {:?}, terminated: {:?}", depth, actions, best_action, terminated);
             if !condition.depth(depth) {
                 return current_best(terminated, best_action).or_else(|| actions.pop());
+            }
+
+            if alpha(&terminated, &best_action).map_or(false, |alpha| alpha.is_upper_limit()) {
+                return current_best(terminated, best_action);
             }
 
             let prev_actions = mem::replace(&mut actions, Vec::new());
@@ -520,6 +555,7 @@ impl<T: Game> Bot<T> {
             }
         }
 
+        println!("depth: 12345, actions: {:?}, best_action: {:?}, terminated: {:?}", actions, best_action, terminated);
         // all branches are terminated, as the loop is finished
         Some(terminated.best_action.map(|(a, _f)| a).unwrap())
     }
@@ -534,37 +570,43 @@ impl<T: Game> Bot<T> {
         depth: u32,
         condition: &mut U,
     ) -> RateAction<T> {
-        let mut state = state.clone();
-        let fitness = state.execute(&action, &self.player);
-        match self.minimax(path, state, depth, alpha, None, condition) {
-            Err(CancelledError) => RateAction::Cancelled(action),
-            Ok(MiniMax::DeadEnd) => {
+        match state.clone().execute(&action, &self.player) {
+            StepResult::Terminated(fitness) => {
                 terminated.add_complete(action, fitness);
                 RateAction::Terminated
             }
-            Ok(MiniMax::Terminated(_path, Branch::Equal(fitness))) => {
-                terminated.add_complete(action, fitness);
-                RateAction::Terminated
-            }
-            Ok(MiniMax::Terminated(_path, Branch::Worse(maximum))) => {
-                terminated.add_partial(action, maximum);
-                RateAction::Terminated
-            }
-            Ok(MiniMax::Open(_path, Branch::Worse(_))) => RateAction::Worse(action),
-            Ok(MiniMax::Open(path, Branch::Equal(fitness))) => {
-                if Some(fitness) > alpha {
-                    RateAction::NewBest(BestAction {
-                        action,
-                        fitness,
-                        path,
-                    })
-                } else {
-                    RateAction::Worse(action)
+            StepResult::Open(state, fitness) => {
+                match self.minimax(path, state, depth, alpha, None, condition) {
+                    Err(CancelledError) => RateAction::Cancelled(action),
+                    Ok(MiniMax::DeadEnd) => {
+                        terminated.add_complete(action, fitness);
+                        RateAction::Terminated
+                    }
+                    Ok(MiniMax::Terminated(_path, Branch::Equal(fitness))) => {
+                        terminated.add_complete(action, fitness);
+                        RateAction::Terminated
+                    }
+                    Ok(MiniMax::Terminated(_path, Branch::Worse(maximum))) => {
+                        terminated.add_partial(action, maximum);
+                        RateAction::Terminated
+                    }
+                    Ok(MiniMax::Open(_path, Branch::Worse(_))) => RateAction::Worse(action),
+                    Ok(MiniMax::Open(path, Branch::Equal(fitness))) => {
+                        if Some(fitness) > alpha {
+                            RateAction::NewBest(BestAction {
+                                action,
+                                fitness,
+                                path,
+                            })
+                        } else {
+                            RateAction::Worse(action)
+                        }
+                    }
+                    Ok(MiniMax::Terminated(_path, Branch::Better(_)))
+                    | Ok(MiniMax::Open(_path, Branch::Better(_))) => {
+                        unreachable!("beta cutoff at highest depth");
+                    }
                 }
-            }
-            Ok(MiniMax::Terminated(_path, Branch::Better(_)))
-            | Ok(MiniMax::Open(_path, Branch::Better(_))) => {
-                unreachable!("beta cutoff at highest depth");
             }
         }
     }
@@ -591,39 +633,54 @@ impl<T: Game> Bot<T> {
                 let fitness = game_state.look_ahead(&action, &self.player);
                 (action, fitness)
             });
+
             let selected = if active {
-                actions.max_by_key(|(_, fitness)| *fitness)
+                actions.max_by_key(|(_, step_result)| step_result.fitness())
             } else {
-                actions.min_by_key(|(_, fitness)| *fitness)
+                actions.min_by_key(|(_, step_result)| step_result.fitness())
             };
 
-            Ok(selected.map_or(MiniMax::DeadEnd, |(action, fitness)| {
-                MiniMax::Open(vec![action], Branch::Equal(fitness))
-            }))
+            Ok(selected
+                .map(|(action, fitness)| {
+                    MiniMax::Open(vec![action], Branch::Equal(fitness.fitness()))
+                })
+                .unwrap())
         } else {
             let (active, actions) = game_state.actions(&self.player);
+
+            let mut state = State::new(alpha, beta, active);
             let mut states: Vec<_> = actions
                 .into_iter()
-                .filter(|action| path.last().map_or(true, |path| path != action))
-                .map(|action| {
-                    let mut game_state = game_state.clone();
-                    let fitness = game_state.execute(&action, &self.player);
-                    (game_state, action, fitness)
+                .filter_map(|action| {
+                    if path.last().map_or(true, |path| *path != action) {
+                        None
+                    } else {
+                        let game_state = game_state.clone();
+                        match game_state.execute(&action, &self.player) {
+                            StepResult::Open(state, fitness) => Some((state, action, fitness)),
+                            StepResult::Terminated(fitness) => {
+                                state.bind_equal(Vec::new(), fitness, action, true);
+                                None
+                            }
+                        }
+                    }
                 })
                 .collect();
 
-            states.sort_unstable_by_key(|(_, _, fitness)| *fitness);
-            if let Some(action) = path.pop() {
-                let mut game_state = game_state.clone();
-                let fitness = game_state.execute(&action, &self.player);
-                states.push((game_state, action, fitness))
-            }
-
-            if states.is_empty() {
+            if state.best_fitness.is_none() && states.is_empty() {
                 return Ok(MiniMax::DeadEnd);
             }
 
-            let mut state = State::new(alpha, beta, active);
+            states.sort_unstable_by_key(|(_, _, fitness)| *fitness);
+            if let Some(action) = path.pop() {
+                match game_state.clone().execute(&action, &self.player) {
+                    StepResult::Open(state, fitness) => states.push((state, action, fitness)),
+                    StepResult::Terminated(fitness) => {
+                        state.bind_equal(Vec::new(), fitness, action, true)
+                    }
+                }
+            }
+
             for (game_state, action, fitness) in states.into_iter().rev() {
                 if let Some(cutoff) = state.cutoff() {
                     return Ok(cutoff);

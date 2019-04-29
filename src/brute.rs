@@ -1,5 +1,5 @@
 //! This module contains a bot which simply brute forces every possible action, this bot should only be used for testing.
-use crate::Game;
+use crate::{prelude::*, Game};
 
 use std::cmp::{self, Ordering};
 use std::fmt;
@@ -111,17 +111,25 @@ impl<T: Game> Brute<T> {
 
     fn minimax(&mut self, state: &T, action: &T::Action, depth: u32) -> T::Fitness {
         if depth == 0 {
-            state.look_ahead(&action, &self.player)
+            state.look_ahead(&action, &self.player).fitness()
         } else {
             let mut state = state.clone();
-            let fitness = state.execute(&action, &self.player);
-            let (active, actions) = state.actions(&self.player);
+            match state.execute(&action, &self.player) {
+                StepResult::Terminated(fitness) => fitness,
+                StepResult::Open(state, _) => {
+                    let (active, actions) = state.actions(&self.player);
 
-            let iter = actions
-                .into_iter()
-                .map(|action| self.minimax(&state, &action, depth - 1));
+                    let iter = actions
+                        .into_iter()
+                        .map(|action| self.minimax(&state, &action, depth - 1));
 
-            if active { iter.max() } else { iter.min() }.unwrap_or(fitness)
+                    if active {
+                        iter.max().unwrap()
+                    } else {
+                        iter.min().unwrap()
+                    }
+                }
+            }
         }
     }
 }

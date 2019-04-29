@@ -1,93 +1,69 @@
 //! tests where the Bot completely analyses the tree and should select the best action
 use super::*;
 
-#[rustfmt::skip]
-const EMPTY: Node = Node::root();
-
 /// Who would have ever imagined that a length of 0 can cause problems.
 /// I obviously did not, that's why I had to add this test.
 #[test]
 fn empty() {
-    assert_eq!(Bot::new(true).select(&EMPTY, ToCompletion), None);
+    #[rustfmt::skip]
+    let empty = Node::root();
+
+    assert_eq!(Bot::new(true).select(&empty, ToCompletion), None);
 }
 
-#[rustfmt::skip]
-const DEPTH_ONE: Node = Node::root().children(&[
+/// Tests if the trivial case works
+#[test]
+fn depth_one() {
+    #[rustfmt::skip]
+    let depth_one = Node::root().children(vec![
         Node::new(true, 0),
         Node::new(true, 2),
         Node::new(true, 1),
     ]);
 
-/// Tests if the trivial case works
-#[test]
-fn depth_one() {
     // Some(1) to love
-    assert_eq!(Bot::new(true).select(&DEPTH_ONE, ToCompletion), Some(1));
+    assert_eq!(Bot::new(true).select(&depth_one, ToCompletion), Some(1));
 }
-
-#[rustfmt::skip]
-const DIFFERENT_DEPTHS: Node = Node::root().children(&[
-    Node::new(false, 0).children(&[
-        Node::new(true, 0),
-    ]),
-    Node::new(false, 1),
-]);
 
 /// Tests if terminating nodes get ignored in case another branch is longer
 #[test]
 fn different_depths() {
+    #[rustfmt::skip]
+    let different_depths = Node::root().children(vec![
+        Node::new(false, 0).children(vec![
+            Node::new(true, 0),
+        ]),
+        Node::new(false, 1),
+    ]);
+
     // Some(1) to love
     assert_eq!(
-        Bot::new(true).select(&DIFFERENT_DEPTHS, ToCompletion),
+        Bot::new(true).select(&different_depths, ToCompletion),
         Some(1)
     );
 }
-
-#[rustfmt::skip]
-const ALPHA_REUSE: Node = Node::root().children(&[
-    Node::new(false, 0).children(&[
-        Node::new(false, 5).children(&[
-            Node::new(true, 3),
-        ]),
-    ]),
-    Node::new(false, 1).children(&[
-        Node::new(false, 6).children(&[
-            Node::new(true, 4),
-            Node::new(true, 2),
-        ]),
-    ]),
-]);
 
 /// This test tries to catch errors where alpha values are not removed after each depth,
 /// which can cause a beta cutoff at [1][0][0], causing the returned fitness to be 4 instead of 2.
 #[test]
 fn alpha_reuse() {
-    assert_eq!(Bot::new(true).select(&ALPHA_REUSE, ToCompletion), Some(0));
-}
-
-#[rustfmt::skip]
-const PREMATURE_TERMINATION: Node = Node::root().children(&[
-    Node::new(false, 0).children(&[
-        Node::new(false, 0).children(&[
-            Node::new(false, 0).children(&[
-                Node::new(false, 0),
-            ]),
-        ]),
-    ]),
-    Node::new(false, 0).children(&[
-        Node::new(true, 5).children(&[
-            Node::new(true, 5).children(&[
+    #[rustfmt::skip]
+    let alpha_reuse = Node::root().children(vec![
+        Node::new(false, 0).children(vec![
+            Node::new(false, 5).children(vec![
                 Node::new(true, 3),
             ]),
         ]),
-    ]),
-    Node::new(false, 0).children(&[
-        Node::new(false, 4),
-        Node::new(false, 2).children(&[
-            Node::new(false, 2),
+        Node::new(false, 1).children(vec![
+            Node::new(false, 6).children(vec![
+                Node::new(true, 4),
+                Node::new(true, 2),
+            ]),
         ]),
-    ]),
-]);
+    ]);
+
+    assert_eq!(Bot::new(true).select(&alpha_reuse, ToCompletion), Some(0));
+}
 
 /// Removing a branch which seems to terminate can be dangerous in case no deeper nodes are
 /// visited due to a cutoff. This test checks this by having a beta cutoff at [2][0]. In case the branch
@@ -97,93 +73,115 @@ const PREMATURE_TERMINATION: Node = Node::root().children(&[
 /// Note: [0] is a deep branch with only bad options to prevent another bug from interfering. <3
 #[test]
 fn premature_termination() {
+    #[rustfmt::skip]
+    let premature_termination = Node::root().children(vec![
+        Node::new(false, 0).children(vec![
+            Node::new(false, 0).children(vec![
+                Node::new(false, 0).children(vec![
+                    Node::new(false, 0),
+                ]),
+            ]),
+        ]),
+        Node::new(false, 0).children(vec![
+            Node::new(true, 5).children(vec![
+                Node::new(true, 5).children(vec![
+                    Node::new(true, 3),
+                ]),
+            ]),
+        ]),
+        Node::new(false, 0).children(vec![
+            Node::new(false, 4),
+            Node::new(false, 2).children(vec![
+                Node::new(false, 2),
+            ]),
+        ]),
+    ]);
+
     assert_eq!(
-        Bot::new(true).select(&PREMATURE_TERMINATION, ToCompletion),
+        Bot::new(true).select(&premature_termination, ToCompletion),
         Some(1)
     );
 }
 
-#[rustfmt::skip]
-const FUZZ_ONE: Node = Node::root().children(&[
-    // fitness: 3
-    Node::new(true, 0).children(&[
-        Node::new(false, 0).children(&[
-            Node::new(false, 1),
-        ]),
-        Node::new(true, 0),
-    ]),
-    // fitness: 0
-    Node::new(false, 0).children(&[
-        Node::new(false, 0).children(&[
-            Node::new(true, 2).children(&[
-                Node::new(true, 3).children(&[
-                    Node::new(true, 0),
-                ]),
-            ]),
-        ]),
-    ]),
-    // fitness: 0
-    Node::new(true, 0),
-]);
-
 /// The world is weird.
 #[test]
 fn fuzz_one() {
-    assert_eq!(Bot::new(true).select(&FUZZ_ONE, ToCompletion), Some(0));
-}
-
-#[rustfmt::skip]
-const FUZZ_TWO: Node = Node::root().children(&[
-    // fitness 32
-    Node::new(true, 74).children(&[
-        Node::new(true, 2).children(&[
-            Node::new(false, 1).children(&[
-                Node::new(false, -119),
+    #[rustfmt::skip]
+    let fuzz_one = Node::root().children(vec![
+        // fitness: 3
+        Node::new(true, 0).children(vec![
+            Node::new(false, 0).children(vec![
+                Node::new(false, 1),
             ]),
-            Node::new(true, 42),
+            Node::new(true, 0),
         ]),
-    ]),
-    // fitness 0
-    Node::new(true, 0).children(&[
-        Node::new(false, 0).children(&[
-            Node::new(true, -1),
-            Node::new(true, 42),
+        // fitness: 0
+        Node::new(false, 0).children(vec![
+            Node::new(false, 0).children(vec![
+                Node::new(true, 2).children(vec![
+                    Node::new(true, 3).children(vec![
+                        Node::new(true, 0),
+                    ]),
+                ]),
+            ]),
         ]),
+        // fitness: 0
         Node::new(true, 0),
-    ]),
-]);
+    ]);
+
+    assert_eq!(Bot::new(true).select(&fuzz_one, ToCompletion), Some(0));
+}
 
 /// error due to incorrect interpretation of the cutoff
 /// in [1][0][1]
 #[test]
 fn fuzz_two() {
-    assert_eq!(Bot::new(true).select(&FUZZ_TWO, ToCompletion), Some(0));
-}
-
-#[rustfmt::skip]
-const FUZZ_THREE: Node = Node::root().children(&[
-    // fitness 3
-    Node::new(false, 1).children(&[
-        Node::new(false, 2).children(&[
-            Node::new(true, 10).children(&[
-                Node::new(true, 3),
-                Node::new(true, 10).children(&[
-                    Node::new(true, 0)
+    #[rustfmt::skip]
+    let fuzz_two = Node::root().children(vec![
+        // fitness 32
+        Node::new(true, 74).children(vec![
+            Node::new(true, 2).children(vec![
+                Node::new(false, 1).children(vec![
+                    Node::new(false, -119),
                 ]),
+                Node::new(true, 42),
             ]),
         ]),
-    ]),
-    // fitness 8
-    Node::new(true, 8).children(&[
-        Node::new(true, 2),
-        Node::new(false, 0).children(&[
-            Node::new(true, 8),
-            Node::new(true, 10)
+        // fitness 0
+        Node::new(true, 0).children(vec![
+            Node::new(false, 0).children(vec![
+                Node::new(true, -1),
+                Node::new(true, 42),
+            ]),
+            Node::new(true, 0),
         ]),
-    ]),
-]);
+    ]);
+    assert_eq!(Bot::new(true).select(&fuzz_two, ToCompletion), Some(0));
+}
 
 #[test]
 fn fuzz_three() {
-    assert_eq!(Bot::new(true).select(&FUZZ_THREE, ToCompletion), Some(1));
+    #[rustfmt::skip]
+    let fuzz_three = Node::root().children(vec![
+        // fitness 3
+        Node::new(false, 1).children(vec![
+            Node::new(false, 2).children(vec![
+                Node::new(true, 10).children(vec![
+                    Node::new(true, 3),
+                    Node::new(true, 10).children(vec![
+                        Node::new(true, 0)
+                    ]),
+                ]),
+            ]),
+        ]),
+        // fitness 8
+        Node::new(true, 8).children(vec![
+            Node::new(true, 2),
+            Node::new(false, 0).children(vec![
+                Node::new(true, 8),
+                Node::new(true, 10)
+            ]),
+        ]),
+    ]);
+    assert_eq!(Bot::new(true).select(&fuzz_three, ToCompletion), Some(1));
 }

@@ -401,6 +401,7 @@ fn main() {
 }
 
 // <----------------------------------------------------------------->
+use rubot::prelude::*;
 
 impl rubot::Game for Game {
     type Player = Piece;
@@ -409,32 +410,37 @@ impl rubot::Game for Game {
     type Fitness = i32;
 
     fn actions(&self, player: &Self::Player) -> (bool, Self::Actions) {
-        (*player == self.current_piece(), self.moves().clone())
+        (*player == self.current_piece(), self.moves())
     }
 
-    fn execute(&mut self, action: &Self::Action, player: &Self::Player) -> Self::Fitness {
-        match self.make_move(*action) {
-            Ok(()) => (),
-            Err(e) => unreachable!("Error: {:?}", e),
+    fn execute(mut self, action: &Self::Action, player: &Self::Player) -> StepResult<Self> {
+        if let Err(e) = self.make_move(*action) {
+            unreachable!("Error: {:?}", e)
         }
 
-        match player {
+        let value = match player {
             Piece::X => self.pieces().0 as i32 - self.pieces().1 as i32,
             Piece::O => self.pieces().1 as i32 - self.pieces().0 as i32,
+        };
+
+        if self.is_finished() {
+            StepResult::Terminated(value)
+        } else {
+            StepResult::Open(self, value)
         }
     }
 
-    fn look_ahead(&self, action: &Self::Action, player: &Self::Player) -> Self::Fitness {
+    fn look_ahead(&self, action: &Self::Action, player: &Self::Player) -> LookAheadResult<Self> {
         let value = match player {
             Piece::X => self.pieces().0 as i32 - self.pieces().1 as i32,
             Piece::O => self.pieces().1 as i32 - self.pieces().0 as i32,
         };
 
         let step = if let Move::Long(_, _) = action { 1 } else { 2 };
-        if self.current_piece() != *player {
+        LookAheadResult::Open(if self.current_piece() != *player {
             value + step
         } else {
             value - step
-        }
+        })
     }
 }

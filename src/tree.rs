@@ -1,6 +1,6 @@
 //! A tree implementation used in examples and tests.
 
-use crate::Game;
+use crate::prelude::*;
 use std::fmt::{self, Debug, Formatter};
 use std::ops::Range;
 
@@ -15,9 +15,9 @@ use std::ops::Range;
 /// use rubot::{Bot, ToCompletion, tree::Node};
 ///
 /// # #[rustfmt::skip]
-/// const TREE: Node = Node::root().children(&[
+/// const TREE: Node = Node::root().children(vec![
 ///     Node::new(false, 4),
-///     Node::new(false, 7).children(&[
+///     Node::new(false, 7).children(vec![
 ///         Node::new(true, 5),
 ///         Node::new(true, 3),
 ///     ])
@@ -32,7 +32,7 @@ pub struct Node {
     player: bool,
     // always from the perspective of the tested player
     fitness: i8,
-    children: &'static [Node],
+    children: Vec<Node>,
 }
 
 impl Debug for Node {
@@ -44,7 +44,7 @@ impl Debug for Node {
     }
 }
 
-impl Game for Node {
+impl crate::Game for Node {
     type Player = bool;
     type Action = usize;
     type Fitness = i8;
@@ -54,35 +54,34 @@ impl Game for Node {
         (*player == self.player, 0..self.children.len())
     }
 
-    fn execute(&mut self, action: &Self::Action, _: &Self::Player) -> Self::Fitness {
-        *self = self.children[*action].clone();
-        // fitness of the child
-        self.fitness
-    }
-
-    fn look_ahead(&self, action: &Self::Action, _: &Self::Player) -> Self::Fitness {
-        self.children[*action].fitness
+    fn execute(self, action: &Self::Action, _: &Self::Player) -> StepResult<Self> {
+        let child = self.children[*action].clone();
+        let fitness = child.fitness;
+        if child.children.is_empty() {
+            StepResult::Terminated(fitness)
+        } else {
+            StepResult::Open(child, fitness)
+        }
     }
 }
 
 impl Node {
     /// creates a root node, this is equal to `Node::new(true, 0)`.
-    pub const fn root() -> Self {
+    pub fn root() -> Self {
         Self::new(true, 0)
     }
 
     /// creates a new node with no children.
-    pub const fn new(player: bool, fitness: i8) -> Self {
-        const EMPTY_ARR: &[Node] = &[];
+    pub fn new(player: bool, fitness: i8) -> Self {
         Self {
             player,
             fitness,
-            children: EMPTY_ARR,
+            children: Vec::new(),
         }
     }
 
     /// adds children to `self`.
-    pub const fn children(self, children: &'static [Node]) -> Self {
+    pub fn children(self, children: Vec<Node>) -> Self {
         Self { children, ..self }
     }
 }
