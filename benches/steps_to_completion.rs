@@ -14,6 +14,7 @@ fn count_steps(name: &str, fen: &str) {
     println!("{:060} {:10}", name, logger.steps());
 }
 
+/// http://wtharvey.com/m8n2.txt
 fn mate_in_two() {
     count_steps("Gustav Neumann vs Carl Mayet, Berlin, 1866", "5rkr/pp2Rp2/1b1p1Pb1/3P2Q1/2n3P1/2p5/P4P2/4R1K1 w - - 1 0");
     count_steps("Joseph Blackburne vs Martin, England, 1876", "1r1kr3/Nbppn1pp/1b6/8/6Q1/3B1P2/Pq3P1P/3RR1K1 w - - 1 0");
@@ -22,6 +23,7 @@ fn mate_in_two() {
     println!();
 }
 
+/// http://wtharvey.com/m8n3.txt
 fn mate_in_three() {
     count_steps("Daniel Harrwitz vs Bernhard Horwitz, London, 1846", "3q1r1k/2p4p/1p1pBrp1/p2Pp3/2PnP3/5PP1/PP1Q2K1/5R1R w - - 1 0");
     count_steps("Bernhard Horwitz vs Howard Staunton, London, 1846", "6k1/ppp2ppp/8/2n2K1P/2P2P1P/2Bpr3/PP4r1/4RR2 b - - 0 1");
@@ -30,6 +32,7 @@ fn mate_in_three() {
     println!();
 }
 
+/// http://wtharvey.com/m8n4.txt
 fn mate_in_four() {
     count_steps("Paul Morphy vs NN, New Orleans (blind, simul), 1858 ", "r1b3kr/3pR1p1/ppq4p/5P2/4Q3/B7/P5PP/5RK1 w - - 1 0");
     count_steps("Ignac Kolisch vs Luigi Centurini, Geneva, 1859", "2k4r/1r1q2pp/QBp2p2/1p6/8/8/P4PPP/2R3K1 w - - 1 0");
