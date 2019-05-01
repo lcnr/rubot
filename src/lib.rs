@@ -15,8 +15,6 @@
 pub mod alpha_beta;
 pub mod tree;
 
-mod fitness;
-
 #[allow(unused)]
 #[doc(hidden)]
 pub mod brute;
@@ -87,6 +85,9 @@ use std::time::{Duration, Instant};
 ///     /// `true` if the player wins the game, `false` otherwise.
 ///     type Fitness = bool;
 ///     type Actions = RangeInclusive<u32>;
+///
+///     /// The fitness is only true if the game is won
+///     const UPPER_LIMIT: Option<bool> = Some(true);
 ///     
 ///     fn actions(&self, player: &Self::Player) -> (bool, Self::Actions) {
 ///         (*player == self.active_player, 1..=std::cmp::min(self.flags, 3))
@@ -125,11 +126,21 @@ pub trait Game: Clone {
     /// a executable action
     type Action: PartialEq;
     /// the fitness of a state
-    type Fitness: Fitness;
+    type Fitness: Ord + Copy;
     /// the collection returned by [`actions`][ac]
     ///
     /// [ac]:trait.Game.html#tymethod.actions
     type Actions: IntoIterator<Item = Self::Action>;
+
+    /// The value of the best fitness, all terminated states with a `fitness >= UPPER_LIMIT` are treated as equal.
+    ///
+    /// A good example is a checkmate in chess, as there does not exist a better game state than having won.
+    const UPPER_LIMIT: Option<Self::Fitness> = None;
+
+    /// The smallest possible fitness, all terminated states with a `fitness <= LOWER_LIMIT` are treated as equal.
+    ///
+    /// A good example is a checkmate in chess, as there does not exist a worse game state than having lost.
+    const LOWER_LIMIT: Option<Self::Fitness> = None;
 
     /// Returns all currently possible actions and if they are executed by the given `player`.
     fn actions(&self, player: &Self::Player) -> (bool, Self::Actions);
@@ -168,41 +179,6 @@ pub trait Game: Clone {
     /// [exe]: trait.Game.html#tymethod.execute
     fn look_ahead(&self, action: &Self::Action, player: &Self::Player) -> Self::Fitness {
         self.clone().execute(action, player)
-    }
-}
-
-/// The fitness of an [`action`][ac].
-///
-/// `is_upper_limit` should only return `true` in case not be a better state,
-/// `is_lower_limit` should only return `true` if there can not be a worse state.
-/// This means that the [`Bot`][bot] can ignore other possible moves.
-///
-/// A good example is chess. Once a move causes a checkmate there is no
-/// reason to try other moves as there can not be a better outcome.
-///
-/// # Implementation
-///
-/// Both signed and unsigned integers have a upper limit of `Self::max_value` and
-/// signed ones also have a lower limit of `Self::min_value` while unsigned integers
-/// do not have a lower limit.
-///
-/// `bool` has a upper limit of `true` and no lower limit.
-///
-/// # Examples
-///
-/// TODO: example using Node
-///
-/// [ac]: trait.Game.html#associatedtype.Action
-/// [bot]: alpha_beta/struct.Bot.html
-pub trait Fitness: Ord + Copy {
-    #[inline]
-    fn is_upper_limit(&self) -> bool {
-        false
-    }
-
-    #[inline]
-    fn is_lower_limit(&self) -> bool {
-        false
     }
 }
 

@@ -336,6 +336,7 @@ enum RateAction<T: Game> {
     Cancelled(T::Action),
     NewBest(BestAction<T>),
     Worse(T::Action),
+    UpperLimit(T::Action),
     Terminated,
 }
 
@@ -349,6 +350,7 @@ where
             RateAction::Cancelled(action) => write!(f, "Cancelled({:?})", action),
             RateAction::NewBest(best_action) => write!(f, "NewBest({:?})", best_action),
             RateAction::Worse(action) => write!(f, "Worse({:?})", action),
+            RateAction::UpperLimit(action) => write!(f, "UpperLimit({:?})", action),
             RateAction::Terminated => write!(f, "Terminated"),
         }
     }
@@ -461,6 +463,7 @@ impl<T: Game> Bot<T> {
                     }
                     RateAction::NewBest(new) => best_action = Some(new),
                     RateAction::Worse(action) => actions.push(action),
+                    RateAction::UpperLimit(action) => return Some(action),
                     RateAction::Terminated => (),
                 }
             }
@@ -485,6 +488,7 @@ impl<T: Game> Bot<T> {
                         }
                     }
                     RateAction::Worse(action) => actions.push(action),
+                    RateAction::UpperLimit(action) => return Some(action),
                     RateAction::Terminated => (),
                 }
             }
@@ -509,6 +513,7 @@ impl<T: Game> Bot<T> {
                         }
                     }
                     RateAction::Worse(action) => actions.push(action),
+                    RateAction::UpperLimit(action) => return Some(action),
                     RateAction::Terminated => (),
                 }
             }
@@ -543,8 +548,12 @@ impl<T: Game> Bot<T> {
                 RateAction::Terminated
             }
             Ok(MiniMax::Terminated(_path, Branch::Equal(fitness))) => {
-                terminated.add_complete(action, fitness);
-                RateAction::Terminated
+                if T::UPPER_LIMIT.map_or(false, |limit| fitness >= limit) {
+                    RateAction::UpperLimit(action)
+                } else {
+                    terminated.add_complete(action, fitness);
+                    RateAction::Terminated
+                }
             }
             Ok(MiniMax::Terminated(_path, Branch::Worse(maximum))) => {
                 terminated.add_partial(action, maximum);
@@ -562,9 +571,11 @@ impl<T: Game> Bot<T> {
                     RateAction::Worse(action)
                 }
             }
-            Ok(MiniMax::Terminated(_path, Branch::Better(_)))
-            | Ok(MiniMax::Open(_path, Branch::Better(_))) => {
-                unreachable!("beta cutoff at highest depth");
+            Ok(MiniMax::Terminated(_path, Branch::Better(_))) => {
+                unreachable!("terminated beta cutoff at highest depth");
+            }
+            Ok(MiniMax::Open(_path, Branch::Better(_))) => {
+                unreachable!("open beta cutoff at highest depth");
             }
         }
     }
