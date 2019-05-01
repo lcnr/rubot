@@ -1,12 +1,7 @@
-use std::io;
-use std::time::Duration;
+use shakmaty::{fen::Fen, Color, Move, MoveList, Outcome, Position, Role, Setup};
 
-use shakmaty::{fen::Fen, uci::Uci, Color, Move, MoveList, Outcome, Position, Role, Setup};
-
-/// this example requires a newtype due to orphan rules, as both shakmaty::Chess and rubot::Game
-/// are from outside of this example.
 #[derive(Debug, Clone, Default)]
-pub struct Chess(shakmaty::Chess);
+pub struct Chess(pub shakmaty::Chess);
 
 impl rubot::Game for Chess {
     type Player = Color;
