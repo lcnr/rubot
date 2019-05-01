@@ -14,6 +14,9 @@ impl rubot::Game for Chess {
     type Actions = MoveList;
     type Fitness = i32;
 
+    const UPPER_LIMIT: Option<i32> = Some(std::i32::MAX);
+    const LOWER_LIMIT: Option<i32> = Some(std::i32::MIN);
+
     fn actions(&self, player: &Self::Player) -> (bool, Self::Actions) {
         (*player == self.0.turn(), self.0.legals())
     }
