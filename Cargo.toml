@@ -16,7 +16,11 @@ criterion = "0.2"
 shakmaty = "0.14"
 
 [[bench]]
-name = "to_completion"
+name = "time_to_completion"
+harness = false
+
+[[bench]]
+name = "steps_to_completion"
 harness = false
 
 [[example]]
