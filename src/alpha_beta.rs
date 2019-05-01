@@ -116,22 +116,36 @@ impl<T: Game> State<T> {
     ) {
         self.terminated &= terminated;
         if self.active {
-            self.alpha = Some(self.alpha.map_or(fitness, |value| cmp::max(value, fitness)));
-            if self
-                .best_fitness
-                .as_ref()
-                .map_or(true, |old| old.fitness() <= fitness)
-            {
-                self.update_best_action(path, action, Branch::Equal(fitness));
+            if terminated && T::UPPER_LIMIT.map_or(false, |limit| fitness >= limit) {
+                self.alpha = Some(fitness);
+                self.beta = Some(fitness);
+                self.best_fitness = Some(Branch::Equal(fitness));
+                self.terminated = true;
+            } else {
+                self.alpha = Some(self.alpha.map_or(fitness, |value| cmp::max(value, fitness)));
+                if self
+                    .best_fitness
+                    .as_ref()
+                    .map_or(true, |old| old.fitness() <= fitness)
+                {
+                    self.update_best_action(path, action, Branch::Equal(fitness));
+                }
             }
         } else {
-            self.beta = Some(self.beta.map_or(fitness, |value| cmp::min(value, fitness)));
-            if self
-                .best_fitness
-                .as_ref()
-                .map_or(true, |old| old.fitness() >= fitness)
-            {
-                self.update_best_action(path, action, Branch::Equal(fitness));
+            if terminated && T::LOWER_LIMIT.map_or(false, |limit| fitness <= limit) {
+                self.alpha = Some(fitness);
+                self.beta = Some(fitness);
+                self.best_fitness = Some(Branch::Equal(fitness));
+                self.terminated = true;
+            } else {
+                self.beta = Some(self.beta.map_or(fitness, |value| cmp::min(value, fitness)));
+                if self
+                    .best_fitness
+                    .as_ref()
+                    .map_or(true, |old| old.fitness() >= fitness)
+                {
+                    self.update_best_action(path, action, Branch::Equal(fitness));
+                }
             }
         }
     }
@@ -188,11 +202,19 @@ impl<T: Game> State<T> {
 
     fn cutoff(&mut self) -> Option<MiniMax<T>> {
         match (self.alpha, self.beta) {
-            (Some(ref alpha), Some(ref beta)) if alpha >= beta => {
+            (Some(alpha), Some(beta)) if alpha >= beta => {
                 let branch = if self.active {
-                    Branch::Better(self.alpha.unwrap())
+                    if T::UPPER_LIMIT.map_or(false, |limit| alpha >= limit) {
+                        Branch::Equal(alpha)
+                    } else {
+                        Branch::Better(self.alpha.unwrap())
+                    }
                 } else {
-                    Branch::Worse(self.beta.unwrap())
+                    if T::LOWER_LIMIT.map_or(false, |limit| beta <= limit) {
+                        Branch::Equal(beta)
+                    } else {
+                        Branch::Worse(self.beta.unwrap())
+                    }
                 };
 
                 if self.terminated {
