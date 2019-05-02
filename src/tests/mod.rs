@@ -4,39 +4,39 @@ mod brute;
 mod completed;
 mod partial;
 
-#[rustfmt::skip]
-const LOGGER_EQ: Node = Node::root().children(&[
-    Node::new(false, 0).children(&[
-        Node::new(false, 0).children(&[
-            Node::new(false, 0).children(&[
-                Node::new(false, 0).children(&[
-                    Node::new(false, 0),
+#[test]
+fn logger_eq() {
+    #[rustfmt::skip]
+    let logger_eq = Node::root().push_children(&[
+        Node::new(false, 0).push_children(&[
+            Node::new(false, 0).push_children(&[
+                Node::new(false, 0).push_children(&[
+                    Node::new(false, 0).push_children(&[
+                        Node::new(false, 0),
+                    ]),
                 ]),
             ]),
         ]),
-    ]),
-    Node::new(false, 0).children(&[
-        Node::new(true, 5).children(&[
-            Node::new(true, 5).children(&[
-                Node::new(true, 3),
+        Node::new(false, 0).push_children(&[
+            Node::new(true, 5).push_children(&[
+                Node::new(true, 5).push_children(&[
+                    Node::new(true, 3),
+                ]),
             ]),
         ]),
-    ]),
-    Node::new(false, 0).children(&[
-        Node::new(false, 4),
-        Node::new(false, 2).children(&[
-            Node::new(false, 2),
+        Node::new(false, 0).push_children(&[
+            Node::new(false, 4),
+            Node::new(false, 2).push_children(&[
+                Node::new(false, 2),
+            ]),
         ]),
-    ]),
-]);
+    ]);
 
-#[test]
-fn logger_eq() {
     let mut logger = Logger::new(Steps(7));
-    Bot::new(true).select(&LOGGER_EQ, &mut logger);
+    Bot::new(true).select(&logger_eq, &mut logger);
     assert_eq!(logger.steps(), 7);
 
     let mut logger = Logger::new(Depth(2));
-    Bot::new(true).select(&LOGGER_EQ, &mut logger);
+    Bot::new(true).select(&logger_eq, &mut logger);
     assert_eq!(logger.depth(), 2);
 }

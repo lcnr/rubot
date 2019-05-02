@@ -305,19 +305,19 @@ impl RunCondition for Instant {
 ///
 /// ```rust
 /// # use rubot::{Bot, tree::Node, ToCompletion};
-/// const TREE: Node = Node::root().children(&[
-///     Node::new(false, 7).children(&[
+/// let tree = Node::root().push_children(&[
+///     Node::new(false, 7).push_children(&[
 ///         Node::new(true, 4),
 ///         Node::new(true, 2),
 ///     ]),
-///     Node::new(false, 5).children(&[
+///     Node::new(false, 5).push_children(&[
 ///         Node::new(true, 8),
 ///         Node::new(true, 9)
 ///     ]),
 /// ]);
 ///
 /// let mut bot = Bot::new(true);
-/// assert_eq!(bot.select(&TREE, ToCompletion), Some(1));
+/// assert_eq!(bot.select(&tree, ToCompletion), Some(1));
 /// ```
 /// [rc]: trait.RunCondition.html
 #[derive(Clone, Copy, Debug)]
@@ -341,20 +341,20 @@ impl RunCondition for ToCompletion {
 ///
 /// ```rust
 /// # use rubot::{Bot, tree::Node, Depth};
-/// const TREE: Node = Node::root().children(&[
-///     Node::new(false, 7).children(&[
+/// let tree = Node::root().push_children(&[
+///     Node::new(false, 7).push_children(&[
 ///         Node::new(true, 4),
 ///         Node::new(true, 2),
 ///     ]),
-///     Node::new(false, 5).children(&[
+///     Node::new(false, 5).push_children(&[
 ///         Node::new(true, 8),
 ///         Node::new(true, 9)
 ///     ]),
 /// ]);
 ///
 /// let mut bot = Bot::new(true);
-/// assert_eq!(bot.select(&TREE, Depth(0)), Some(0));
-/// assert_eq!(bot.select(&TREE, Depth(1)), Some(1));
+/// assert_eq!(bot.select(&tree, Depth(0)), Some(0));
+/// assert_eq!(bot.select(&tree, Depth(1)), Some(1));
 /// ```
 /// [rc]: trait.RunCondition.html
 #[derive(Clone, Copy, Debug)]
@@ -380,12 +380,12 @@ impl RunCondition for Depth {
 /// ```rust
 /// # use rubot::{Bot, tree::Node, ToCompletion, Logger};
 /// # use std::time::Duration;
-/// const TREE: Node = Node::root().children(&[
-///     Node::new(false, 7).children(&[
+/// let tree = Node::root().push_children(&[
+///     Node::new(false, 7).push_children(&[
 ///         Node::new(true, 4),
 ///         Node::new(true, 2),
 ///     ]),
-///     Node::new(false, 5).children(&[
+///     Node::new(false, 5).push_children(&[
 ///         Node::new(true, 8),
 ///         Node::new(true, 9)
 ///     ]),
@@ -393,7 +393,7 @@ impl RunCondition for Depth {
 ///
 /// let mut bot = Bot::new(true);
 /// let mut logger = Logger::new(ToCompletion);
-/// assert_eq!(bot.select(&TREE, &mut logger), Some(1));
+/// assert_eq!(bot.select(&tree, &mut logger), Some(1));
 ///
 /// assert_eq!(logger.depth(), 1);
 /// // the total duration of `bot.select`

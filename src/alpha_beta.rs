@@ -408,12 +408,12 @@ impl<T: Game> Bot<T> {
     /// use rubot::{Bot, ToCompletion, tree::Node};
     /// use std::time::Duration;
     ///
-    /// const TREE: Node = Node::root().children(&[
-    ///     Node::new(false, 7).children(&[
+    /// let tree = Node::root().push_children(&[
+    ///     Node::new(false, 7).push_children(&[
     ///         Node::new(true, 4),
     ///         Node::new(true, 2),
     ///     ]),
-    ///     Node::new(false, 5).children(&[
+    ///     Node::new(false, 5).push_children(&[
     ///         Node::new(true, 8),
     ///         Node::new(true, 9)
     ///     ]),
@@ -423,11 +423,11 @@ impl<T: Game> Bot<T> {
     /// let mut bot = Bot::new(true);
     ///
     /// // finds the best possible action
-    /// let best = bot.select(&TREE, ToCompletion);
+    /// let best = bot.select(&tree, ToCompletion);
     /// // searches for at most 2 seconds and returns the best answer found.
     /// // As 2 seconds are more than enough for this simple tree, this will
     /// // return the best possible action without spending this much time
-    /// let limited = bot.select(&TREE, Duration::from_secs(2));
+    /// let limited = bot.select(&tree, Duration::from_secs(2));
     ///
     /// assert_eq!(best, Some(1));
     /// assert_eq!(limited, Some(1));
