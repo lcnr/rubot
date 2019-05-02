@@ -3,7 +3,7 @@
 extern crate libfuzzer_sys;
 extern crate rubot;
 
-use rubot::{brute::Brute, Bot, ToCompletion, tree::Node};
+use rubot::{brute::Brute, tree::Node, Bot, ToCompletion};
 
 fuzz_target!(|data: &[u8]| {
     if data.len() >= 4 {
