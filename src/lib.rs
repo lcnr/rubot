@@ -404,6 +404,7 @@ pub struct Logger<T: IntoRunCondition> {
     condition: T::RunCondition,
     steps: u32,
     depth: u32,
+    completed: bool,
     duration: Duration,
 }
 
@@ -414,6 +415,7 @@ impl<T: IntoRunCondition> Logger<T> {
             condition: condition.into_run_condition(),
             steps: 0,
             depth: 0,
+            completed: true,
             duration: Duration::from_secs(0),
         }
     }
@@ -431,6 +433,14 @@ impl<T: IntoRunCondition> Logger<T> {
     /// [sel]: alpha_beta/struct.Bot.html#method.select
     pub fn depth(&self) -> u32 {
         self.depth
+    }
+
+    /// Returns `true` if last call to [`select`][sel] was completed and `false` if it was
+    /// cancelled by the run condition.
+    /// 
+    /// [sel]: alpha_beta/struct.Bot.html#method.select
+    pub fn completed(&self) -> bool {
+        self.completed
     }
 
     /// Returns the total time spend during the last call to [`select`][sel].
@@ -466,12 +476,25 @@ impl<'a, T: IntoRunCondition> IntoRunCondition for &'a mut Logger<T> {
 impl<'a, T: IntoRunCondition> RunCondition for InnerLogger<'a, T> {
     fn step(&mut self) -> bool {
         self.0.steps += 1;
-        self.0.condition.step()
+        if self.0.condition.step() {
+            true
+        }
+        else {
+            self.0.completed = false;
+            false
+            
+        }
     }
 
     fn depth(&mut self, depth: u32) -> bool {
         self.0.depth = depth;
-        self.0.condition.depth(depth)
+        if self.0.condition.depth(depth) {
+            true
+        }
+        else {
+            self.0.completed = false;
+            false
+        }
     }
 }
 
