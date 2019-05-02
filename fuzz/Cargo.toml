@@ -17,8 +17,8 @@ git = "https://github.com/rust-fuzz/libfuzzer-sys.git"
 members = ["."]
 
 [[bin]]
-name = "to_completion"
-path = "fuzz_targets/to_completion.rs"
+name = "complete"
+path = "fuzz_targets/complete.rs"
 
 [[bin]]
 name = "partial"

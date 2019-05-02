@@ -16,7 +16,7 @@ criterion = "0.2"
 shakmaty = "0.14"
 
 [[bench]]
-name = "time_to_completion"
+name = "time_complete"
 harness = false
 
 [[bench]]
@@ -24,7 +24,7 @@ name = "time_partial"
 harness = false
 
 [[bench]]
-name = "steps_to_completion"
+name = "steps_complete"
 harness = false
 
 [[bench]]
