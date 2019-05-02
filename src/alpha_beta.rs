@@ -666,6 +666,10 @@ impl<T: Game> Bot<T> {
         beta: Option<T::Fitness>,
         condition: &mut U,
     ) -> Result<MiniMax<T>, CancelledError> {
+        if !condition.step() {
+            return Err(CancelledError);
+        }
+
         match path.pop() {
             None => self.minimax(game_state, depth, alpha, beta, condition),
             Some(action) => {
