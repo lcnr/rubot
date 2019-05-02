@@ -5,7 +5,6 @@ rust:
   - nightly
 sudo: false
 script:
-  
   - cargo build --verbose
   - ( cd fuzz ; cargo build --verbose )
   - cargo test
