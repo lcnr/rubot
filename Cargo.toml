@@ -20,7 +20,15 @@ name = "time_to_completion"
 harness = false
 
 [[bench]]
+name = "time_partial"
+harness = false
+
+[[bench]]
 name = "steps_to_completion"
+harness = false
+
+[[bench]]
+name = "steps_partial"
 harness = false
 
 [[example]]
