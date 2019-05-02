@@ -106,8 +106,8 @@ impl Node {
                         self.x = self.y;
                         self.y = self.z;
                         self.z = self.w;
-                        let w_ = self.w;
-                        self.w = w_ ^ (w_ >> 19) ^ (t ^ (t >> 8));
+                        let w = self.w;
+                        self.w = w ^ (w >> 19) ^ (t ^ (t >> 8));
                         self.w.0
                     }
                 }
