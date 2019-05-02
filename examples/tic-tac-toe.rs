@@ -298,11 +298,22 @@ fn main() {
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct Action(usize, usize);
 
+#[derive(Copy, Clone, PartialOrd, Ord, PartialEq, Eq)]
+pub enum Fitness {
+    Loss,
+    /// the game is still ongoing or a tie
+    Even,
+    Win,
+}
+
 impl rubot::Game for Game {
     type Player = Piece;
     type Action = Action;
     type Actions = Vec<Action>;
-    type Fitness = i32;
+    type Fitness = Fitness;
+
+    const UPPER_LIMIT: Option<Fitness> = Some(Fitness::Win);
+    const LOWER_LIMIT: Option<Fitness> = Some(Fitness::Loss);
 
     fn actions(&self, player: &Self::Player) -> (bool, Self::Actions) {
         let mut actions = Vec::new();
@@ -325,19 +336,19 @@ impl rubot::Game for Game {
         }
 
         match self.winner() {
-            None | Some(Winner::Tie) => 0,
+            None | Some(Winner::Tie) => Fitness::Even,
             Some(Winner::O) => {
                 if *player == Piece::O {
-                    1
+                    Fitness::Win
                 } else {
-                    -1
+                    Fitness::Loss
                 }
             }
             Some(Winner::X) => {
                 if *player == Piece::X {
-                    1
+                    Fitness::Win
                 } else {
-                    -1
+                    Fitness::Loss
                 }
             }
         }
