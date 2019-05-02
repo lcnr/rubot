@@ -187,3 +187,27 @@ const FUZZ_THREE: Node = Node::root().children(&[
 fn fuzz_three() {
     assert_eq!(Bot::new(true).select(&FUZZ_THREE, ToCompletion), Some(1));
 }
+
+/// Tests for a bug which caused [0] to always return Terminated(Worse(1)), as [0][1][1]
+/// causes an alpha beta cutoff, returning Worse(1). This replaced Equal(1)
+/// because I accidentally wrote `old_fitness <= new_fitness` instead of
+/// `old_fitness < new_fitness`.
+#[test]
+fn subtree_cutoff() {
+    const subtree_cutoff: Node = Node::root().children(&[
+        Node::new(true, -63).children(&[
+            // Branch::Equal(one)
+            Node::new(true, 1),
+            Node::new(false, -2).children(&[
+                Node::new(false, 10).children(&[Node::new(true, -63)]),
+                Node::new(true, 1),
+            ]),
+        ]),
+        Node::new(false, -2),
+    ]);
+
+    assert_eq!(
+        Bot::new(true).select(&subtree_cutoff, ToCompletion),
+        Some(0)
+    );
+}
