@@ -437,7 +437,7 @@ impl<T: IntoRunCondition> Logger<T> {
 
     /// Returns `true` if last call to [`select`][sel] was completed and `false` if it was
     /// cancelled by the run condition.
-    /// 
+    ///
     /// [sel]: alpha_beta/struct.Bot.html#method.select
     pub fn completed(&self) -> bool {
         self.completed
@@ -474,24 +474,23 @@ impl<'a, T: IntoRunCondition> IntoRunCondition for &'a mut Logger<T> {
 }
 
 impl<'a, T: IntoRunCondition> RunCondition for InnerLogger<'a, T> {
+    #[inline]
     fn step(&mut self) -> bool {
         self.0.steps += 1;
         if self.0.condition.step() {
             true
-        }
-        else {
+        } else {
             self.0.completed = false;
             false
-            
         }
     }
 
+    #[inline]
     fn depth(&mut self, depth: u32) -> bool {
         self.0.depth = depth;
         if self.0.condition.depth(depth) {
             true
-        }
-        else {
+        } else {
             self.0.completed = false;
             false
         }
