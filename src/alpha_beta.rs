@@ -645,7 +645,12 @@ impl<T: Game> Bot<T> {
                 })
                 .collect();
 
-            states.sort_unstable_by_key(|(_, _, fitness)| *fitness);
+            if active {
+                states.sort_unstable_by(|(_, _, a), (_, _, b)| a.cmp(b));
+            } else {
+                states.sort_unstable_by(|(_, _, a), (_, _, b)| b.cmp(a));
+            }
+
             if let Some(action) = path.pop() {
                 let mut game_state = game_state.clone();
                 let fitness = game_state.execute(&action, &self.player);
