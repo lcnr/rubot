@@ -49,6 +49,9 @@ impl Game for Node {
     type Fitness = i8;
     type Actions = Range<usize>;
 
+    const UPPER_LIMIT: Option<i8> = Some(std::i8::MAX);
+    const LOWER_LIMIT: Option<i8> = Some(std::i8::MIN);
+
     fn actions(&self, player: &Self::Player) -> (bool, Self::Actions) {
         (*player == self.player, 0..self.children.len())
     }
