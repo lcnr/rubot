@@ -416,9 +416,10 @@ where
 /// assert_eq!(limited, Some(1));
 /// ```
 /// Please visit [`select`][sel] for a simple example.
+/// 
 /// [id]:https://en.wikipedia.org/wiki/Iterative_deepening_depth-first_search
 /// [ab_wiki]:https://en.wikipedia.org/wiki/Alpha%E2%80%93beta_pruning
-/// [sel]: trait.GameBot.html#tymethod.select
+/// [sel]: struct.Bot.html#method.select
 /// [game]: ../trait.Game.html
 pub struct Bot<T: Game> {
     player: T::Player,

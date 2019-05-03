@@ -310,7 +310,7 @@ where
 }
 
 /// Can be converted into [`RunCondition`][rc] which returns `true` for the first `self.0` steps.
-/// This should only be used for debugging and testing as unlike `Duration`, `ToCompletion` or `Depth` as
+/// This should only be used for debugging and testing as unlike `Duration`, `ToCompletion` or `Depth`, as
 /// the total amount of steps needed is not directly indicative of search depth and can change between minor versions.
 ///
 /// [rc]: trait.RunCondition.html
@@ -381,7 +381,7 @@ impl RunCondition for Instant {
 
 /// A struct implementing [`RunCondition`][rc] which always returns `true`.
 ///
-/// This means that the bot will run until the best action was found with certainty.
+/// This means that the bot will always run until the best action was found.
 ///
 /// # Examples
 ///
@@ -454,9 +454,9 @@ impl RunCondition for Depth {
     }
 }
 
-/// A struct implementing [`IntoRunCondition`] which logs how many `steps` were taken,
-/// the deepest completed depth and the total time of the last call to [`select`][sel].
-///
+/// A struct implementing [`IntoRunCondition`] which can be used to log a call to [`select`][sel].
+/// For more details you can visit the individual methods.
+/// 
 /// # Examples
 ///
 /// ```rust
