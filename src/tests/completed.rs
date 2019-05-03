@@ -15,7 +15,7 @@ fn empty() {
 #[test]
 fn depth_one() {
     #[rustfmt::skip]
-    let depth_one = Node::root().push_children(&[
+    let depth_one = Node::root().with_children(&[
         Node::new(true, 0),
         Node::new(true, 2),
         Node::new(true, 1),
@@ -29,8 +29,8 @@ fn depth_one() {
 #[test]
 fn different_depths() {
     #[rustfmt::skip]
-    let different_depths = Node::root().push_children(&[
-        Node::new(false, 0).push_children(&[
+    let different_depths = Node::root().with_children(&[
+        Node::new(false, 0).with_children(&[
             Node::new(true, 0),
         ]),
         Node::new(false, 1),
@@ -48,14 +48,14 @@ fn different_depths() {
 #[test]
 fn alpha_reuse() {
     #[rustfmt::skip]
-    let alpha_reuse = Node::root().push_children(&[
-        Node::new(false, 0).push_children(&[
-            Node::new(false, 5).push_children(&[
+    let alpha_reuse = Node::root().with_children(&[
+        Node::new(false, 0).with_children(&[
+            Node::new(false, 5).with_children(&[
                 Node::new(true, 3),
             ]),
         ]),
-        Node::new(false, 1).push_children(&[
-            Node::new(false, 6).push_children(&[
+        Node::new(false, 1).with_children(&[
+            Node::new(false, 6).with_children(&[
                 Node::new(true, 4),
                 Node::new(true, 2),
             ]),
@@ -74,24 +74,24 @@ fn alpha_reuse() {
 #[test]
 fn premature_termination() {
     #[rustfmt::skip]
-    let premature_termination = Node::root().push_children(&[
-        Node::new(false, 0).push_children(&[
-            Node::new(false, 0).push_children(&[
-                Node::new(false, 0).push_children(&[
+    let premature_termination = Node::root().with_children(&[
+        Node::new(false, 0).with_children(&[
+            Node::new(false, 0).with_children(&[
+                Node::new(false, 0).with_children(&[
                     Node::new(false, 0),
                 ]),
             ]),
         ]),
-        Node::new(false, 0).push_children(&[
-            Node::new(true, 5).push_children(&[
-                Node::new(true, 5).push_children(&[
+        Node::new(false, 0).with_children(&[
+            Node::new(true, 5).with_children(&[
+                Node::new(true, 5).with_children(&[
                     Node::new(true, 3),
                 ]),
             ]),
         ]),
-        Node::new(false, 0).push_children(&[
+        Node::new(false, 0).with_children(&[
             Node::new(false, 4),
-            Node::new(false, 2).push_children(&[
+            Node::new(false, 2).with_children(&[
                 Node::new(false, 2),
             ]),
         ]),
@@ -107,19 +107,19 @@ fn premature_termination() {
 #[test]
 fn fuzz_one() {
     #[rustfmt::skip]
-    let fuzz_one = Node::root().push_children(&[
+    let fuzz_one = Node::root().with_children(&[
         // fitness: 3
-        Node::new(true, 0).push_children(&[
-            Node::new(false, 0).push_children(&[
+        Node::new(true, 0).with_children(&[
+            Node::new(false, 0).with_children(&[
                 Node::new(false, 1),
             ]),
             Node::new(true, 0),
         ]),
         // fitness: 0
-        Node::new(false, 0).push_children(&[
-            Node::new(false, 0).push_children(&[
-                Node::new(true, 2).push_children(&[
-                    Node::new(true, 3).push_children(&[
+        Node::new(false, 0).with_children(&[
+            Node::new(false, 0).with_children(&[
+                Node::new(true, 2).with_children(&[
+                    Node::new(true, 3).with_children(&[
                         Node::new(true, 0),
                     ]),
                 ]),
@@ -137,19 +137,19 @@ fn fuzz_one() {
 #[test]
 fn fuzz_two() {
     #[rustfmt::skip]
-    let fuzz_two = Node::root().push_children(&[
+    let fuzz_two = Node::root().with_children(&[
         // fitness 32
-        Node::new(true, 74).push_children(&[
-            Node::new(true, 2).push_children(&[
-                Node::new(false, 1).push_children(&[
+        Node::new(true, 74).with_children(&[
+            Node::new(true, 2).with_children(&[
+                Node::new(false, 1).with_children(&[
                     Node::new(false, -119),
                 ]),
                 Node::new(true, 42),
             ]),
         ]),
         // fitness 0
-        Node::new(true, 0).push_children(&[
-            Node::new(false, 0).push_children(&[
+        Node::new(true, 0).with_children(&[
+            Node::new(false, 0).with_children(&[
                 Node::new(true, -1),
                 Node::new(true, 42),
             ]),
@@ -163,22 +163,22 @@ fn fuzz_two() {
 #[test]
 fn fuzz_three() {
     #[rustfmt::skip]
-    let fuzz_three = Node::root().push_children(&[
+    let fuzz_three = Node::root().with_children(&[
         // fitness 3
-        Node::new(false, 1).push_children(&[
-            Node::new(false, 2).push_children(&[
-                Node::new(true, 10).push_children(&[
+        Node::new(false, 1).with_children(&[
+            Node::new(false, 2).with_children(&[
+                Node::new(true, 10).with_children(&[
                     Node::new(true, 3),
-                    Node::new(true, 10).push_children(&[
+                    Node::new(true, 10).with_children(&[
                         Node::new(true, 0),
                     ]),
                 ]),
             ]),
         ]),
         // fitness 8
-        Node::new(true, 8).push_children(&[
+        Node::new(true, 8).with_children(&[
             Node::new(true, 2),
-            Node::new(false, 0).push_children(&[
+            Node::new(false, 0).with_children(&[
                 Node::new(true, 8),
                 Node::new(true, 10),
             ]),
@@ -194,12 +194,12 @@ fn fuzz_three() {
 /// `old_fitness < new_fitness`.
 #[test]
 fn subtree_cutoff() {
-    let subtree_cutoff = Node::root().push_children(&[
-        Node::new(true, -63).push_children(&[
+    let subtree_cutoff = Node::root().with_children(&[
+        Node::new(true, -63).with_children(&[
             // Branch::Equal(one)
             Node::new(true, 1),
-            Node::new(false, -2).push_children(&[
-                Node::new(false, 10).push_children(&[Node::new(true, -63)]),
+            Node::new(false, -2).with_children(&[
+                Node::new(false, 10).with_children(&[Node::new(true, -63)]),
                 Node::new(true, 1),
             ]),
         ]),

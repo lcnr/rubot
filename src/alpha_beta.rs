@@ -378,12 +378,46 @@ where
     }
 }
 
-/// A game bot which analyses its moves using alpha beta pruning with iterative deepening. In case [`select`][sel] terminates
+/// A game bot which analyses its moves using [alpha beta pruning][ab_wiki] with [iterative deepening][id]. In case [`select`][sel] terminates
 /// before `condition` returned true, the result is always the best possible move. While this bot caches some data
 /// during computation, it does not require a lot of memory and will not store anything between different [`select`][sel] calls.
 ///
 /// This bot requires [`Game`][game] to be implemented for your game.
+/// 
+/// # Examples
 ///
+/// ```rust
+/// use rubot::{Bot, ToCompletion, tree::Node};
+/// use std::time::Duration;
+///
+/// let tree = Node::root().with_children(&[
+///     Node::new(false, 7).with_children(&[
+///         Node::new(true, 4),
+///         Node::new(true, 2),
+///     ]),
+///     Node::new(false, 5).with_children(&[
+///         Node::new(true, 8),
+///         Node::new(true, 9)
+///     ]),
+///     Node::new(false, 6),
+/// ]);
+///
+/// // creates a new bot for the currently active player
+/// let mut bot = Bot::new(true);
+///
+/// // finds the best possible action
+/// let best = bot.select(&tree, ToCompletion);
+/// // searches for at most 2 seconds and returns the best answer found.
+/// // As 2 seconds are more than enough for this simple tree, this will
+/// // return the best possible action without spending this much time
+/// let limited = bot.select(&tree, Duration::from_secs(2));
+///
+/// assert_eq!(best, Some(1));
+/// assert_eq!(limited, Some(1));
+/// ```
+/// Please visit [`select`][sel] for a simple example.
+/// [id]:https://en.wikipedia.org/wiki/Iterative_deepening_depth-first_search
+/// [ab_wiki]:https://en.wikipedia.org/wiki/Alpha%E2%80%93beta_pruning
 /// [sel]: trait.GameBot.html#tymethod.select
 /// [game]: ../trait.Game.html
 pub struct Bot<T: Game> {
@@ -398,40 +432,11 @@ impl<T: Game> Bot<T> {
 
     /// Returns a chosen action based on the given game state.
     ///
-    /// In case no `Action` is possible or the bot is currently not the active player, this functions returns `None`.
+    /// This functions only returns  `None` if no `Action` is possible or the bot is currently not the active player .
+    /// 
     /// This method runs until either the best possible action was found
     /// or one of `RunCondition::depth` and `RunCondition::step` returned `false`.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rubot::{Bot, ToCompletion, tree::Node};
-    /// use std::time::Duration;
-    ///
-    /// let tree = Node::root().push_children(&[
-    ///     Node::new(false, 7).push_children(&[
-    ///         Node::new(true, 4),
-    ///         Node::new(true, 2),
-    ///     ]),
-    ///     Node::new(false, 5).push_children(&[
-    ///         Node::new(true, 8),
-    ///         Node::new(true, 9)
-    ///     ]),
-    ///     Node::new(false, 6),
-    /// ]);
-    ///
-    /// let mut bot = Bot::new(true);
-    ///
-    /// // finds the best possible action
-    /// let best = bot.select(&tree, ToCompletion);
-    /// // searches for at most 2 seconds and returns the best answer found.
-    /// // As 2 seconds are more than enough for this simple tree, this will
-    /// // return the best possible action without spending this much time
-    /// let limited = bot.select(&tree, Duration::from_secs(2));
-    ///
-    /// assert_eq!(best, Some(1));
-    /// assert_eq!(limited, Some(1));
-    /// ```
+    /// 
     pub fn select<U: IntoRunCondition>(&mut self, state: &T, condition: U) -> Option<T::Action> {
         let mut condition = condition.into_run_condition();
 

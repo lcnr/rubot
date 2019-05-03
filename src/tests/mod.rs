@@ -7,26 +7,26 @@ mod partial;
 #[test]
 fn logger_eq() {
     #[rustfmt::skip]
-    let logger_eq = Node::root().push_children(&[
-        Node::new(false, 0).push_children(&[
-            Node::new(false, 0).push_children(&[
-                Node::new(false, 0).push_children(&[
-                    Node::new(false, 0).push_children(&[
+    let logger_eq = Node::root().with_children(&[
+        Node::new(false, 0).with_children(&[
+            Node::new(false, 0).with_children(&[
+                Node::new(false, 0).with_children(&[
+                    Node::new(false, 0).with_children(&[
                         Node::new(false, 0),
                     ]),
                 ]),
             ]),
         ]),
-        Node::new(false, 0).push_children(&[
-            Node::new(true, 5).push_children(&[
-                Node::new(true, 5).push_children(&[
+        Node::new(false, 0).with_children(&[
+            Node::new(true, 5).with_children(&[
+                Node::new(true, 5).with_children(&[
                     Node::new(true, 3),
                 ]),
             ]),
         ]),
-        Node::new(false, 0).push_children(&[
+        Node::new(false, 0).with_children(&[
             Node::new(false, 4),
-            Node::new(false, 2).push_children(&[
+            Node::new(false, 2).with_children(&[
                 Node::new(false, 2),
             ]),
         ]),

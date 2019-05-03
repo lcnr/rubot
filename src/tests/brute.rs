@@ -5,9 +5,9 @@ use crate::brute::Brute;
 #[test]
 fn allowed_actions_depth_zero() {
     #[rustfmt::skip]
-    let allowed_actions_depth_zero = Node::root().push_children(&[
+    let allowed_actions_depth_zero = Node::root().with_children(&[
         Node::new(true, -1),
-        Node::new(true, 65).push_children(&[
+        Node::new(true, 65).with_children(&[
             Node::new(false, 0)
         ]),
         Node::new(true, 11),

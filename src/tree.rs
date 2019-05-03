@@ -14,9 +14,9 @@ use std::ops::Range;
 /// use rubot::{Bot, ToCompletion, tree::Node};
 ///
 /// # #[rustfmt::skip]
-/// let tree = Node::root().push_children(&[
+/// let tree = Node::root().with_children(&[
 ///     Node::new(false, 4),
-///     Node::new(false, 7).push_children(&[
+///     Node::new(false, 7).with_children(&[
 ///         Node::new(true, 5),
 ///         Node::new(true, 3),
 ///     ])
@@ -145,8 +145,10 @@ impl Node {
         }
     }
 
-    /// Adds `children` to `self`.
-    pub fn push_children(mut self, children: &[Node]) -> Self {
+    /// Sets the children of `self` to `children`.
+    /// Previous children are forgotten.
+    pub fn with_children(mut self, children: &[Node]) -> Self {
+        self.children.clear();
         self.children.extend_from_slice(children);
         self
     }

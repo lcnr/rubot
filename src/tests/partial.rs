@@ -5,7 +5,7 @@ use super::*;
 #[test]
 fn no_steps() {
     #[rustfmt::skip]
-    let no_steps = Node::root().push_children(&[
+    let no_steps = Node::root().with_children(&[
         Node::new(true, 0),
         Node::new(true, 0),
     ]);
@@ -21,9 +21,9 @@ fn no_steps() {
 #[test]
 fn fuzz_one() {
     #[rustfmt::skip]
-    let fuzz_one = Node::root().push_children(&[
+    let fuzz_one = Node::root().with_children(&[
         Node::new(true, -1),
-        Node::new(true, 65).push_children(&[
+        Node::new(true, 65).with_children(&[
             Node::new(false, 0),
         ]),
         Node::new(true, 11),

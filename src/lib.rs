@@ -1,14 +1,50 @@
 #![forbid(unsafe_code)]
 //! An easily reusable game bot for deterministic games.
 //!
-//! It is required to implement the trait [`Game`][game] to use this crate.
-//! For more details, look at the [trait documentation][game] or visit the [examples directory][ex].
+//! It is required to implement the trait [`Game`][game] for your game to use this crate.
 //!
-//! While this crate will probably have many different kind of bots in the future, there is currently only one: [`alpha_beta`][ab],
-//! which uses an optimized version of [alpha beta pruning][ab_wiki] with [iterative deepening][id].
+//! # Examples
 //!
-//! [id]:https://en.wikipedia.org/wiki/Iterative_deepening_depth-first_search
-//! [ab_wiki]:https://en.wikipedia.org/wiki/Alpha%E2%80%93beta_pruning
+//! A game where you win by selecting `10`.
+//!
+//! ```rust
+//! use std::ops::RangeInclusive;
+//!
+//! #[derive(Clone)]
+//! struct ChooseTen;
+//!
+//! impl rubot::Game for ChooseTen {
+//!     /// there is only one player, you!
+//!     type Player = ();
+//!     type Action = u8;
+//!     /// did you choose a 10?
+//!     type Fitness = bool;
+//!     type Actions = RangeInclusive<u8>;
+//!
+//!     fn actions(&self, _: &Self::Player) -> (bool, Self::Actions) {
+//!         (true, 1..=10)
+//!     }
+//!
+//!     fn execute(&mut self, action: &u8, _: &Self::Player) -> Self::Fitness {
+//!         *action == 10
+//!     }
+//! }
+//!
+//! fn main() {
+//!     use rubot::Bot;
+//!     use std::time::Duration;
+//! 
+//!     let mut bot = Bot::new(());
+//!     assert_eq!(
+//!         bot.select(&ChooseTen, Duration::from_secs(1)),
+//!         Some(10)
+//!     );
+//! }
+//! ```
+//! 
+//! Please visit the [examples folder][ex] or the [`trait Game`][game] documentation
+//! for more useful examples.
+//!
 //! [ab]:alpha_beta/struct.Bot.html
 //! [ex]:https://github.com/lcnr/rubot/tree/master/examples
 //! [game]:trait.Game.html
@@ -116,6 +152,35 @@ use std::time::{Duration, Instant};
 ///     assert_eq!(game.winner(), Player::A, "players are not playing optimally");
 /// }
 /// ```
+/// 
+/// # Template
+/// 
+/// A template which can be used to implement this trait more quickly.
+/// 
+/// ```rust
+/// #[derive(Clone)]
+/// struct PlaceholderGame;
+/// struct PlaceholderPlayer;
+/// #[derive(PartialEq)]
+/// struct PlaceholderAction;
+/// #[derive(Clone, Copy, PartialOrd, Ord, PartialEq, Eq)]
+/// struct PlaceholderFitness;
+/// 
+/// impl rubot::Game for PlaceholderGame {
+///     type Player = PlaceholderPlayer;
+///     type Action = PlaceholderAction;
+///     type Fitness = PlaceholderFitness;
+///     type Actions = Vec<Self::Action>;
+///     
+///     fn actions(&self, player: &Self::Player) -> (bool, Self::Actions) {
+///         unimplemented!("")
+///     }
+///     
+///     fn execute(&mut self, action: &Self::Action, player: &Self::Player) -> Self::Fitness {
+///         unimplemented!("");
+///     }
+/// }
+/// ```
 /// [bot]: trait.GameBot.html
 /// [act]: trait.Game.html#associatedtype.Action
 /// [player]: trait.Game.html#associatedtype.player
@@ -133,13 +198,17 @@ pub trait Game: Clone {
     type Actions: IntoIterator<Item = Self::Action>;
 
     /// The value of the best fitness, all terminated states with a `fitness >= UPPER_LIMIT` are treated as equal.
-    ///
+    /// 
     /// A good example is a checkmate in chess, as there does not exist a better game state than having won.
+    /// 
+    /// `None` by default.
     const UPPER_LIMIT: Option<Self::Fitness> = None;
 
     /// The smallest possible fitness, all terminated states with a `fitness <= LOWER_LIMIT` are treated as equal.
     ///
     /// A good example is a checkmate in chess, as there does not exist a worse game state than having lost.
+    ///
+    /// `None` by default.
     const LOWER_LIMIT: Option<Self::Fitness> = None;
 
     /// Returns all currently possible actions and if they are executed by the given `player`.
@@ -162,16 +231,29 @@ pub trait Game: Clone {
     /// This function should always return the same [`Fitness`][fit] as calling [`execute`][exe].
     ///
     /// ```rust
-    /// # // Why am I lying to you :O
-    /// # struct Game;
-    /// # impl Game {
-    /// #   fn look_ahead(&self, action: &(), player: &()) -> u32 { 42 }
-    /// #   fn execute(&mut self, action: &(), player: &()) -> u32 { 42 }
+    /// # use rubot::Game;
+    /// # #[derive(Clone)]
+    /// # struct GameState;
+    /// # impl rubot::Game for GameState {
+    /// #     type Player = ();
+    /// #     type Action = ();
+    /// #     type Fitness = bool;
+    /// #     type Actions = Option<()>;
+    /// #
+    /// #     fn actions(&self, _player: &Self::Player) -> (bool, Self::Actions) {
+    /// #         (true, Some(()))
+    /// #     }
+    /// #
+    /// #     fn execute(&mut self, _action: &Self::Action, _player: &Self::Player) -> Self::Fitness {
+    /// #         true
+    /// #     }
     /// # }
-    /// # let mut state = Game;
-    /// # let (action, player) = ((), &());
-    /// let look_ahead = state.look_ahead(&action, player);
-    /// let execute = state.execute(&action, player);
+    /// # let player = ();
+    /// # let action = ();
+    /// let mut state = GameState;
+    /// 
+    /// let look_ahead = state.look_ahead(&action, &player);
+    /// let execute = state.execute(&action, &player);
     ///
     /// assert_eq!(look_ahead, execute);
     /// ```
@@ -305,12 +387,12 @@ impl RunCondition for Instant {
 ///
 /// ```rust
 /// # use rubot::{Bot, tree::Node, ToCompletion};
-/// let tree = Node::root().push_children(&[
-///     Node::new(false, 7).push_children(&[
+/// let tree = Node::root().with_children(&[
+///     Node::new(false, 7).with_children(&[
 ///         Node::new(true, 4),
 ///         Node::new(true, 2),
 ///     ]),
-///     Node::new(false, 5).push_children(&[
+///     Node::new(false, 5).with_children(&[
 ///         Node::new(true, 8),
 ///         Node::new(true, 9)
 ///     ]),
@@ -341,12 +423,12 @@ impl RunCondition for ToCompletion {
 ///
 /// ```rust
 /// # use rubot::{Bot, tree::Node, Depth};
-/// let tree = Node::root().push_children(&[
-///     Node::new(false, 7).push_children(&[
+/// let tree = Node::root().with_children(&[
+///     Node::new(false, 7).with_children(&[
 ///         Node::new(true, 4),
 ///         Node::new(true, 2),
 ///     ]),
-///     Node::new(false, 5).push_children(&[
+///     Node::new(false, 5).with_children(&[
 ///         Node::new(true, 8),
 ///         Node::new(true, 9)
 ///     ]),
@@ -380,12 +462,12 @@ impl RunCondition for Depth {
 /// ```rust
 /// # use rubot::{Bot, tree::Node, ToCompletion, Logger};
 /// # use std::time::Duration;
-/// let tree = Node::root().push_children(&[
-///     Node::new(false, 7).push_children(&[
+/// let tree = Node::root().with_children(&[
+///     Node::new(false, 7).with_children(&[
 ///         Node::new(true, 4),
 ///         Node::new(true, 2),
 ///     ]),
-///     Node::new(false, 5).push_children(&[
+///     Node::new(false, 5).with_children(&[
 ///         Node::new(true, 8),
 ///         Node::new(true, 9)
 ///     ]),
