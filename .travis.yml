@@ -5,6 +5,7 @@ rust:
   - nightly
 sudo: false
 script:
+  - rustup component add rustfmt
   - cargo build --verbose
   - ( cd fuzz ; cargo build --verbose )
   - cargo bench --no-run
