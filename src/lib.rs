@@ -295,15 +295,15 @@ pub trait Game: Clone {
 /// # Bot;
 /// assert!(bot.select(&game, available_time).is_some())
 /// ```
-/// 
+///
 /// # Implementations
-/// 
+///
 /// - [`Duration`][dur]: `select` runs for the specified duration
 /// - [`ToCompletion`][complete]: `select` runs until it found the perfect action
 /// - [`Depth`][depth]: `select` analyses up the to given depth and returns to best action at that depth
 /// - [`Instant`][instant]: `select` runs until the given `Instant` is in the past
 /// - [`Logger`][logger]: takes another run condition and stores information about the last call to `select`
-/// 
+///
 /// [rc]: trait.RunCondition.html
 /// [dur]: https://doc.rust-lang.org/std/time/struct.Duration.html
 /// [complete]: struct.ToCompletion.html
@@ -311,7 +311,7 @@ pub trait Game: Clone {
 /// [instant]: https://doc.rust-lang.org/std/time/struct.Instant.html
 /// [logger]: struct.Logger.html
 /// [sel]: alpha_beta/struct.Bot.html#method.select
-/// 
+///
 pub trait IntoRunCondition {
     type RunCondition: RunCondition;
 
@@ -381,7 +381,7 @@ impl IntoRunCondition for Duration {
 
 /// A condition which indicates if a [`Bot::select`][sel] should keep on running.
 /// It is recommended to use [`Duration`][dur] for nearly all use cases.
-/// 
+///
 /// A list of all already implemented `RunCondition`s can be found [here][into]
 ///
 /// [sel]: alpha_beta/struct.Bot.html#method.select
