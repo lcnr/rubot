@@ -15,7 +15,7 @@ impl<T: Game> Brute<T> {
     }
 
     pub fn select(&mut self, state: &T, depth: u32) -> Option<T::Action> {
-        let (active, actions) = state.actions(&self.player);
+        let (active, actions) = state.actions(self.player);
         if !active {
             return None;
         }
@@ -39,7 +39,7 @@ impl<T: Game> Brute<T> {
     }
 
     pub fn check_if_best(&mut self, state: &T, best: Option<&T::Action>, depth: u32) -> bool {
-        let (active, actions) = state.actions(&self.player);
+        let (active, actions) = state.actions(self.player);
         if !active {
             return best.is_none();
         }
@@ -64,7 +64,7 @@ impl<T: Game> Brute<T> {
     /// lists all actions with a fitness at `completed_depth + 1` which is better than the worst action
     /// of all best actions at `completed_depth`
     pub fn allowed_actions(&mut self, state: &T, completed_depth: u32) -> Vec<Option<T::Action>> {
-        let (active, actions) = state.actions(&self.player);
+        let (active, actions) = state.actions(self.player);
         if !active {
             return vec![None];
         }
@@ -100,7 +100,7 @@ impl<T: Game> Brute<T> {
             .unwrap();
 
         let mut actions: Vec<_> = state
-            .actions(&self.player)
+            .actions(self.player)
             .1
             .into_iter()
             .filter(|action| self.minimax(state, action, completed_depth + 1) >= worst_allowed)
@@ -111,11 +111,11 @@ impl<T: Game> Brute<T> {
 
     fn minimax(&mut self, state: &T, action: &T::Action, depth: u32) -> T::Fitness {
         if depth == 0 {
-            state.look_ahead(&action, &self.player)
+            state.look_ahead(&action, self.player)
         } else {
             let mut state = state.clone();
-            let fitness = state.execute(&action, &self.player);
-            let (active, actions) = state.actions(&self.player);
+            let fitness = state.execute(&action, self.player);
+            let (active, actions) = state.actions(self.player);
 
             let iter = actions
                 .into_iter()
@@ -132,7 +132,7 @@ where
     T::Action: fmt::Debug,
 {
     pub fn print_best(&mut self, state: &T, depth: u32) {
-        let (active, actions) = state.actions(&self.player);
+        let (active, actions) = state.actions(self.player);
         assert!(active);
 
         let mut actions = actions.into_iter();

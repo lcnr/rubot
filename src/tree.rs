@@ -49,21 +49,26 @@ impl Game for Node {
     type Fitness = i8;
     type Actions = Range<usize>;
 
-    const UPPER_LIMIT: Option<i8> = Some(std::i8::MAX);
-    const LOWER_LIMIT: Option<i8> = Some(std::i8::MIN);
-
-    fn actions(&self, player: &Self::Player) -> (bool, Self::Actions) {
-        (*player == self.player, 0..self.children.len())
+    fn actions(&self, player: Self::Player) -> (bool, Self::Actions) {
+        (player == self.player, 0..self.children.len())
     }
 
-    fn execute(&mut self, action: &Self::Action, _: &Self::Player) -> Self::Fitness {
+    fn execute(&mut self, action: &Self::Action, _: Self::Player) -> Self::Fitness {
         *self = self.children[*action].clone();
         // fitness of the child
         self.fitness
     }
 
-    fn look_ahead(&self, action: &Self::Action, _: &Self::Player) -> Self::Fitness {
+    fn look_ahead(&self, action: &Self::Action, _: Self::Player) -> Self::Fitness {
         self.children[*action].fitness
+    }
+
+    fn is_upper_limit(&self, fitness: Self::Fitness, _: Self::Player) -> bool {
+        fitness == std::i8::MAX
+    }
+
+    fn is_lower_limit(&self, fitness: Self::Fitness, _: Self::Player) -> bool {
+        fitness == std::i8::MIN
     }
 }
 

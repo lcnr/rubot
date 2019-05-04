@@ -408,18 +408,11 @@ impl rubot::Game for Game {
     type Actions = Vec<Move>;
     type Fitness = i32;
 
-    /// the exact score at the end of the game is irrelevant
-    /// as the player with more points win, this means that a bot
-    /// can stop searching for better moves if the final score of
-    /// another possible finished game is greater than 0
-    const UPPER_LIMIT: Option<i32> = Some(1);
-    const LOWER_LIMIT: Option<i32> = Some(-1);
-
-    fn actions(&self, player: &Self::Player) -> (bool, Self::Actions) {
-        (*player == self.current_piece(), self.moves())
+    fn actions(&self, player: Self::Player) -> (bool, Self::Actions) {
+        (player == self.current_piece(), self.moves())
     }
 
-    fn execute(&mut self, action: &Self::Action, player: &Self::Player) -> Self::Fitness {
+    fn execute(&mut self, action: &Self::Action, player: Self::Player) -> Self::Fitness {
         match self.make_move(*action) {
             Ok(()) => (),
             Err(e) => unreachable!("Error: {:?}", e),
@@ -431,17 +424,33 @@ impl rubot::Game for Game {
         }
     }
 
-    fn look_ahead(&self, action: &Self::Action, player: &Self::Player) -> Self::Fitness {
+    fn look_ahead(&self, action: &Self::Action, player: Self::Player) -> Self::Fitness {
         let value = match player {
             Piece::X => self.pieces().0 as i32 - self.pieces().1 as i32,
             Piece::O => self.pieces().1 as i32 - self.pieces().0 as i32,
         };
 
         let step = if let Move::Long(_, _) = action { 1 } else { 2 };
-        if self.current_piece() != *player {
+        if self.current_piece() != player {
             value + step
         } else {
             value - step
         }
+    }
+
+    /// the exact score at the end of the game is irrelevant
+    /// as the player with more points win, this means that a bot
+    /// can stop searching for better moves if the final score of
+    /// another possible finished game is greater than 0
+    fn is_upper_limit(&self, fitness: Self::Fitness, _: Self::Player) -> bool {
+        fitness > 0
+    }
+
+    /// the exact score at the end of the game is irrelevant
+    /// as the player with more points win, this means that a bot
+    /// can stop searching for worse moves if the final score of
+    /// another possible finished game is less than 0
+    fn is_lower_limit(&self, fitness: Self::Fitness, _: Self::Player) -> bool {
+        fitness < 0
     }
 }

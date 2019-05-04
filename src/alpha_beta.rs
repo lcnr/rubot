@@ -64,6 +64,8 @@ where
 }
 
 struct State<T: Game> {
+    state: T,
+    player: T::Player,
     alpha: Option<T::Fitness>,
     beta: Option<T::Fitness>,
     best_fitness: Option<Branch<T>>,
@@ -90,8 +92,16 @@ where
 }
 
 impl<T: Game> State<T> {
-    fn new(alpha: Option<T::Fitness>, beta: Option<T::Fitness>, active: bool) -> Self {
+    fn new(
+        state: T,
+        player: T::Player,
+        alpha: Option<T::Fitness>,
+        beta: Option<T::Fitness>,
+        active: bool,
+    ) -> Self {
         Self {
+            state,
+            player,
             alpha,
             beta,
             best_fitness: None,
@@ -116,7 +126,7 @@ impl<T: Game> State<T> {
     ) {
         self.terminated &= terminated;
         if self.active {
-            if terminated && T::UPPER_LIMIT.map_or(false, |limit| fitness >= limit) {
+            if terminated && self.state.is_upper_limit(fitness, self.player) {
                 self.alpha = Some(fitness);
                 self.beta = Some(fitness);
                 self.best_fitness = Some(Branch::Equal(fitness));
@@ -132,7 +142,7 @@ impl<T: Game> State<T> {
                 }
             }
         } else {
-            if terminated && T::LOWER_LIMIT.map_or(false, |limit| fitness <= limit) {
+            if terminated && self.state.is_lower_limit(fitness, self.player) {
                 self.alpha = Some(fitness);
                 self.beta = Some(fitness);
                 self.best_fitness = Some(Branch::Equal(fitness));
@@ -204,13 +214,13 @@ impl<T: Game> State<T> {
         match (self.alpha, self.beta) {
             (Some(alpha), Some(beta)) if alpha >= beta => {
                 let branch = if self.active {
-                    if T::UPPER_LIMIT.map_or(false, |limit| alpha >= limit) {
+                    if self.state.is_upper_limit(alpha, self.player) {
                         Branch::Equal(alpha)
                     } else {
                         Branch::Better(self.alpha.unwrap())
                     }
                 } else {
-                    if T::LOWER_LIMIT.map_or(false, |limit| beta <= limit) {
+                    if self.state.is_lower_limit(beta, self.player) {
                         Branch::Equal(beta)
                     } else {
                         Branch::Worse(self.beta.unwrap())
@@ -383,7 +393,7 @@ where
 /// during computation, it does not require a lot of memory and will not store anything between different [`select`][sel] calls.
 ///
 /// This bot requires [`Game`][game] to be implemented for your game.
-/// 
+///
 /// # Examples
 ///
 /// ```rust
@@ -416,7 +426,7 @@ where
 /// assert_eq!(limited, Some(1));
 /// ```
 /// Please visit [`select`][sel] for a simple example.
-/// 
+///
 /// [id]:https://en.wikipedia.org/wiki/Iterative_deepening_depth-first_search
 /// [ab_wiki]:https://en.wikipedia.org/wiki/Alpha%E2%80%93beta_pruning
 /// [sel]: struct.Bot.html#method.select
@@ -434,14 +444,13 @@ impl<T: Game> Bot<T> {
     /// Returns a chosen action based on the given game state.
     ///
     /// This functions only returns  `None` if no `Action` is possible or the bot is currently not the active player .
-    /// 
+    ///
     /// This method runs until either the best possible action was found
     /// or one of `RunCondition::depth` and `RunCondition::step` returned `false`.
-    /// 
     pub fn select<U: IntoRunCondition>(&mut self, state: &T, condition: U) -> Option<T::Action> {
         let mut condition = condition.into_run_condition();
 
-        let (active, actions) = state.actions(&self.player);
+        let (active, actions) = state.actions(self.player);
         if !active {
             return None;
         }
@@ -450,7 +459,7 @@ impl<T: Game> Bot<T> {
         if actions.len() < 2 {
             return actions.pop();
         }
-        actions.sort_by_cached_key(|a| state.look_ahead(&a, &self.player));
+        actions.sort_by_cached_key(|a| state.look_ahead(&a, self.player));
 
         // the best action which already terminated
         let mut terminated = Terminated::default();
@@ -567,16 +576,20 @@ impl<T: Game> Bot<T> {
         depth: u32,
         condition: &mut U,
     ) -> RateAction<T> {
-        let mut state = state.clone();
-        let fitness = state.execute(&action, &self.player);
-        match self.minimax_with_path(path, state, depth, alpha, None, condition) {
+        let mut updated_state = state.clone();
+        let fitness = updated_state.execute(&action, self.player);
+        match self.minimax_with_path(path, updated_state, depth, alpha, None, condition) {
             Err(CancelledError) => RateAction::Cancelled(action),
             Ok(MiniMax::DeadEnd) => {
-                terminated.add_complete(action, fitness);
-                RateAction::Terminated
+                if state.is_upper_limit(fitness, self.player) {
+                    RateAction::UpperLimit(action)
+                } else {
+                    terminated.add_complete(action, fitness);
+                    RateAction::Terminated
+                }
             }
             Ok(MiniMax::Terminated(_path, Branch::Equal(fitness))) => {
-                if T::UPPER_LIMIT.map_or(false, |limit| fitness >= limit) {
+                if state.is_upper_limit(fitness, self.player) {
                     RateAction::UpperLimit(action)
                 } else {
                     terminated.add_complete(action, fitness);
@@ -608,28 +621,28 @@ impl<T: Game> Bot<T> {
         }
     }
 
-    fn generate_states(
+    fn generate_game_states(
         &mut self,
-        game_state: T,
+        game_state: &T,
         actions: T::Actions,
         active: bool,
     ) -> Vec<(T, T::Action, T::Fitness)> {
-        let mut states: Vec<_> = actions
+        let mut game_states: Vec<_> = actions
             .into_iter()
             .map(|action| {
                 let mut game_state = game_state.clone();
-                let fitness = game_state.execute(&action, &self.player);
+                let fitness = game_state.execute(&action, self.player);
                 (game_state, action, fitness)
             })
             .collect();
 
         if active {
-            states.sort_unstable_by(|(_, _, a), (_, _, b)| a.cmp(b));
+            game_states.sort_unstable_by(|(_, _, a), (_, _, b)| a.cmp(b));
         } else {
-            states.sort_unstable_by(|(_, _, a), (_, _, b)| b.cmp(a));
+            game_states.sort_unstable_by(|(_, _, a), (_, _, b)| b.cmp(a));
         }
 
-        states
+        game_states
     }
 
     fn minimax_use_result(
@@ -683,13 +696,13 @@ impl<T: Game> Bot<T> {
                     unreachable!("lowest depth with non empty path");
                 }
 
-                let (active, actions) = game_state.actions(&self.player);
-                let mut states = self.generate_states(game_state, actions, active);
+                let (active, actions) = game_state.actions(self.player);
+                let mut game_states = self.generate_game_states(&game_state, actions, active);
 
-                let mut state = State::new(alpha, None, active);
-                match states.iter().position(|(_, a, _)| *a == action) {
+                let mut state = State::new(game_state, self.player, alpha, None, active);
+                match game_states.iter().position(|(_, a, _)| *a == action) {
                     Some(idx) => {
-                        let (game_state, action, fitness) = states.remove(idx);
+                        let (game_state, action, fitness) = game_states.remove(idx);
 
                         Self::minimax_use_result(
                             self.minimax_with_path(
@@ -708,7 +721,7 @@ impl<T: Game> Bot<T> {
                     None => unreachable!("path segment not found"),
                 }
 
-                for (game_state, action, fitness) in states.into_iter().rev() {
+                for (game_state, action, fitness) in game_states.into_iter().rev() {
                     if let Some(cutoff) = state.cutoff() {
                         return Ok(cutoff);
                     }
@@ -737,9 +750,9 @@ impl<T: Game> Bot<T> {
         if !condition.step() {
             Err(CancelledError)
         } else if depth == 0 {
-            let (active, actions) = game_state.actions(&self.player);
+            let (active, actions) = game_state.actions(self.player);
             let actions = actions.into_iter().map(|action| {
-                let fitness = game_state.look_ahead(&action, &self.player);
+                let fitness = game_state.look_ahead(&action, self.player);
                 (action, fitness)
             });
             let selected = if active {
@@ -752,15 +765,15 @@ impl<T: Game> Bot<T> {
                 MiniMax::Open(vec![action], Branch::Equal(fitness))
             }))
         } else {
-            let (active, actions) = game_state.actions(&self.player);
-            let states = self.generate_states(game_state, actions, active);
+            let (active, actions) = game_state.actions(self.player);
+            let game_states = self.generate_game_states(&game_state, actions, active);
 
-            if states.is_empty() {
+            if game_states.is_empty() {
                 return Ok(MiniMax::DeadEnd);
             }
 
-            let mut state = State::new(alpha, beta, active);
-            for (game_state, action, fitness) in states.into_iter().rev() {
+            let mut state = State::new(game_state, self.player, alpha, beta, active);
+            for (game_state, action, fitness) in game_states.into_iter().rev() {
                 if let Some(cutoff) = state.cutoff() {
                     return Ok(cutoff);
                 }

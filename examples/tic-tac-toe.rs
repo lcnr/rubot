@@ -312,10 +312,7 @@ impl rubot::Game for Game {
     type Actions = Vec<Action>;
     type Fitness = Fitness;
 
-    const UPPER_LIMIT: Option<Fitness> = Some(Fitness::Win);
-    const LOWER_LIMIT: Option<Fitness> = Some(Fitness::Loss);
-
-    fn actions(&self, player: &Self::Player) -> (bool, Self::Actions) {
+    fn actions(&self, player: Self::Player) -> (bool, Self::Actions) {
         let mut actions = Vec::new();
         if !self.is_finished() {
             for x in 0..3 {
@@ -326,10 +323,10 @@ impl rubot::Game for Game {
                 }
             }
         }
-        (*player == self.current_piece(), actions)
+        (player == self.current_piece(), actions)
     }
 
-    fn execute(&mut self, action: &Self::Action, player: &Self::Player) -> Self::Fitness {
+    fn execute(&mut self, action: &Self::Action, player: Self::Player) -> Self::Fitness {
         match self.make_move(action.0, action.1) {
             Ok(()) => (),
             Err(e) => unreachable!("Error: {:?}", e),
@@ -338,20 +335,28 @@ impl rubot::Game for Game {
         match self.winner() {
             None | Some(Winner::Tie) => Fitness::Even,
             Some(Winner::O) => {
-                if *player == Piece::O {
+                if player == Piece::O {
                     Fitness::Win
                 } else {
                     Fitness::Loss
                 }
             }
             Some(Winner::X) => {
-                if *player == Piece::X {
+                if player == Piece::X {
                     Fitness::Win
                 } else {
                     Fitness::Loss
                 }
             }
         }
+    }
+
+    fn is_upper_limit(&self, fitness: Self::Fitness, _: Self::Player) -> bool {
+        fitness == Fitness::Win
+    }
+
+    fn is_lower_limit(&self, fitness: Self::Fitness, _: Self::Player) -> bool {
+        fitness == Fitness::Loss
     }
 }
 

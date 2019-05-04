@@ -9,21 +9,18 @@ impl rubot::Game for Chess {
     type Actions = MoveList;
     type Fitness = i32;
 
-    const UPPER_LIMIT: Option<i32> = Some(std::i32::MAX);
-    const LOWER_LIMIT: Option<i32> = Some(std::i32::MIN);
-
-    fn actions(&self, player: &Self::Player) -> (bool, Self::Actions) {
-        (*player == self.0.turn(), self.0.legals())
+    fn actions(&self, player: Self::Player) -> (bool, Self::Actions) {
+        (player == self.0.turn(), self.0.legals())
     }
 
-    fn execute(&mut self, action: &Self::Action, player: &Self::Player) -> Self::Fitness {
+    fn execute(&mut self, action: &Self::Action, player: Self::Player) -> Self::Fitness {
         self.0.play_unchecked(action);
 
         if let Some(outcome) = self.0.outcome() {
             match outcome {
                 Outcome::Draw => 0,
                 Outcome::Decisive { winner } => {
-                    if winner == *player {
+                    if winner == player {
                         std::i32::MAX
                     } else {
                         std::i32::MIN
@@ -43,7 +40,7 @@ impl rubot::Game for Chess {
                     Role::King => 900,
                 };
 
-                if piece.color == *player {
+                if piece.color == player {
                     fitness += value;
                 } else {
                     fitness -= value;
@@ -51,6 +48,16 @@ impl rubot::Game for Chess {
             }
             fitness
         }
+    }
+
+    #[inline]
+    fn is_upper_limit(&self, fitness: Self::Fitness, _: Self::Player) -> bool {
+        fitness == std::i32::MAX
+    }
+
+    #[inline]
+    fn is_lower_limit(&self, fitness: Self::Fitness, _: Self::Player) -> bool {
+        fitness == std::i32::MIN
     }
 }
 

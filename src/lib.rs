@@ -21,11 +21,11 @@
 //!     type Fitness = bool;
 //!     type Actions = RangeInclusive<u8>;
 //!
-//!     fn actions(&self, _: &Self::Player) -> (bool, Self::Actions) {
+//!     fn actions(&self, _: Self::Player) -> (bool, Self::Actions) {
 //!         (true, 1..=10)
 //!     }
 //!
-//!     fn execute(&mut self, action: &u8, _: &Self::Player) -> Self::Fitness {
+//!     fn execute(&mut self, action: &u8, _: Self::Player) -> Self::Fitness {
 //!         *action == 10
 //!     }
 //! }
@@ -33,7 +33,7 @@
 //! fn main() {
 //!     use rubot::Bot;
 //!     use std::time::Duration;
-//! 
+//!
 //!     let mut bot = Bot::new(());
 //!     assert_eq!(
 //!         bot.select(&ChooseTen, Duration::from_secs(1)),
@@ -41,9 +41,9 @@
 //!     );
 //! }
 //! ```
-//! 
+//!
 //! Please visit the [examples folder][ex] or the [`trait Game`][game] documentation
-//! for more useful examples.
+//! for more realistic examples.
 //!
 //! [ab]:alpha_beta/struct.Bot.html
 //! [ex]:https://github.com/lcnr/rubot/tree/master/examples
@@ -121,18 +121,20 @@ use std::time::{Duration, Instant};
 ///     /// `true` if the player wins the game, `false` otherwise.
 ///     type Fitness = bool;
 ///     type Actions = RangeInclusive<u32>;
-///
-///     /// The fitness is only true if the game is won
-///     const UPPER_LIMIT: Option<bool> = Some(true);
 ///     
-///     fn actions(&self, player: &Self::Player) -> (bool, Self::Actions) {
-///         (*player == self.active_player, 1..=std::cmp::min(self.flags, 3))
+///     fn actions(&self, player: Self::Player) -> (bool, Self::Actions) {
+///         (player == self.active_player, 1..=std::cmp::min(self.flags, 3))
 ///     }
 ///     
-///     fn execute(&mut self, action: &Self::Action, player: &Self::Player) -> Self::Fitness {
+///     fn execute(&mut self, action: &Self::Action, player: Self::Player) -> Self::Fitness {
 ///         (action, player, &self);
 ///         self.remove_flags(*action);
-///         self.flags == 0 && *player == self.winner()
+///         self.flags == 0 && player == self.winner()
+///     }
+///     
+///     /// The fitness is only `true` if the game is won
+///     fn is_upper_limit(&self, fitness: Self::Fitness, player: Self::Player) -> bool {
+///         fitness
 ///     }
 /// }
 ///
@@ -152,31 +154,32 @@ use std::time::{Duration, Instant};
 ///     assert_eq!(game.winner(), Player::A, "players are not playing optimally");
 /// }
 /// ```
-/// 
+///
 /// # Template
-/// 
+///
 /// A template which can be used to implement this trait more quickly.
-/// 
+///
 /// ```rust
 /// #[derive(Clone)]
 /// struct PlaceholderGame;
+/// #[derive(Clone, Copy)]
 /// struct PlaceholderPlayer;
 /// #[derive(PartialEq)]
 /// struct PlaceholderAction;
 /// #[derive(Clone, Copy, PartialOrd, Ord, PartialEq, Eq)]
 /// struct PlaceholderFitness;
-/// 
+///
 /// impl rubot::Game for PlaceholderGame {
 ///     type Player = PlaceholderPlayer;
 ///     type Action = PlaceholderAction;
 ///     type Fitness = PlaceholderFitness;
 ///     type Actions = Vec<Self::Action>;
 ///     
-///     fn actions(&self, player: &Self::Player) -> (bool, Self::Actions) {
+///     fn actions(&self, player: Self::Player) -> (bool, Self::Actions) {
 ///         unimplemented!("")
 ///     }
 ///     
-///     fn execute(&mut self, action: &Self::Action, player: &Self::Player) -> Self::Fitness {
+///     fn execute(&mut self, action: &Self::Action, player: Self::Player) -> Self::Fitness {
 ///         unimplemented!("");
 ///     }
 /// }
@@ -187,7 +190,7 @@ use std::time::{Duration, Instant};
 /// [examples]: https://github.com/lcnr/rubot/tree/master/examples
 pub trait Game: Clone {
     /// the player type
-    type Player;
+    type Player: Copy;
     /// a executable action
     type Action: PartialEq;
     /// the fitness of a state
@@ -197,22 +200,8 @@ pub trait Game: Clone {
     /// [ac]:trait.Game.html#tymethod.actions
     type Actions: IntoIterator<Item = Self::Action>;
 
-    /// The value of the best fitness, all terminated states with a `fitness >= UPPER_LIMIT` are treated as equal.
-    /// 
-    /// A good example is a checkmate in chess, as there does not exist a better game state than having won.
-    /// 
-    /// `None` by default.
-    const UPPER_LIMIT: Option<Self::Fitness> = None;
-
-    /// The smallest possible fitness, all terminated states with a `fitness <= LOWER_LIMIT` are treated as equal.
-    ///
-    /// A good example is a checkmate in chess, as there does not exist a worse game state than having lost.
-    ///
-    /// `None` by default.
-    const LOWER_LIMIT: Option<Self::Fitness> = None;
-
     /// Returns all currently possible actions and if they are executed by the given `player`.
-    fn actions(&self, player: &Self::Player) -> (bool, Self::Actions);
+    fn actions(&self, player: Self::Player) -> (bool, Self::Actions);
 
     /// Execute a given `action`, returning the new `fitness` for the given `player`.
     /// The returned fitness is always from the perspective of `player`,
@@ -222,7 +211,7 @@ pub trait Game: Clone {
     /// actions generated by [`actions`][actions].
     ///
     /// [actions]: trait.Game.html#tymethod.actions
-    fn execute(&mut self, action: &Self::Action, player: &Self::Player) -> Self::Fitness;
+    fn execute(&mut self, action: &Self::Action, player: Self::Player) -> Self::Fitness;
 
     /// Returns the fitness after `action` is executed.
     /// The returned fitness is always from the perspective of `player`,
@@ -240,27 +229,46 @@ pub trait Game: Clone {
     /// #     type Fitness = bool;
     /// #     type Actions = Option<()>;
     /// #
-    /// #     fn actions(&self, _player: &Self::Player) -> (bool, Self::Actions) {
+    /// #     fn actions(&self, _player: Self::Player) -> (bool, Self::Actions) {
     /// #         (true, Some(()))
     /// #     }
     /// #
-    /// #     fn execute(&mut self, _action: &Self::Action, _player: &Self::Player) -> Self::Fitness {
+    /// #     fn execute(&mut self, _action: &Self::Action, _player: Self::Player) -> Self::Fitness {
     /// #         true
     /// #     }
     /// # }
     /// # let player = ();
     /// # let action = ();
     /// let mut state = GameState;
-    /// 
-    /// let look_ahead = state.look_ahead(&action, &player);
-    /// let execute = state.execute(&action, &player);
+    ///
+    /// let look_ahead = state.look_ahead(&action, player);
+    /// let execute = state.execute(&action, player);
     ///
     /// assert_eq!(look_ahead, execute);
     /// ```
     /// [fit]: trait.Game.html#associatedtype.Fitness
     /// [exe]: trait.Game.html#tymethod.execute
-    fn look_ahead(&self, action: &Self::Action, player: &Self::Player) -> Self::Fitness {
+    #[inline]
+    fn look_ahead(&self, action: &Self::Action, player: Self::Player) -> Self::Fitness {
         self.clone().execute(action, player)
+    }
+
+    /// Returns `true` if the given `fitness` is one of the best currently possible outcomes for the given `player`.
+    ///
+    /// A good example is a checkmate in chess, as there does not exist a better game state than having won.
+    #[inline]
+    fn is_upper_limit(&self, fitness: Self::Fitness, player: Self::Player) -> bool {
+        let _ = (fitness, player);
+        false
+    }
+
+    /// Returns `true` if the given `fitness` is one of the worst currently possible outcomes for the given `player`.
+    ///
+    /// A good example is a checkmate in chess, as there does not exist a worse game state than having lost.
+    #[inline]
+    fn is_lower_limit(&self, fitness: Self::Fitness, player: Self::Player) -> bool {
+        let _ = (fitness, player);
+        false
     }
 }
 
@@ -456,7 +464,7 @@ impl RunCondition for Depth {
 
 /// A struct implementing [`IntoRunCondition`] which can be used to log a call to [`select`][sel].
 /// For more details you can visit the individual methods.
-/// 
+///
 /// # Examples
 ///
 /// ```rust

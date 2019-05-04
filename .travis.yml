@@ -7,6 +7,9 @@ sudo: false
 script:
   - cargo build --verbose
   - ( cd fuzz ; cargo build --verbose )
+  - cargo bench --no-run
+  - cargo fmt -- --check
+  - ( cd fuzz ; cargo fmt --all -- --check )
   - cargo test
 notifications:
   email:
