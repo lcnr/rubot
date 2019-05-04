@@ -717,6 +717,10 @@ impl<T: Game> Bot<T> {
                             action,
                             fitness,
                         );
+
+                        if let Some(cutoff) = state.cutoff() {
+                            return Ok(cutoff);
+                        }
                     }
                     None => unreachable!("path segment not found"),
                 }

@@ -1,3 +1,5 @@
+#![allow(unused)]
+
 use shakmaty::{fen::Fen, Color, Move, MoveList, Outcome, Position, Role, Setup};
 
 #[derive(Debug, Clone, Default)]
