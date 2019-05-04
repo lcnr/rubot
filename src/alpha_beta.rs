@@ -126,7 +126,7 @@ impl<T: Game> State<T> {
     ) {
         self.terminated &= terminated;
         if self.active {
-            if terminated && self.state.is_upper_limit(fitness, self.player) {
+            if terminated && self.state.is_upper_bound(fitness, self.player) {
                 self.alpha = Some(fitness);
                 self.beta = Some(fitness);
                 self.best_fitness = Some(Branch::Equal(fitness));
@@ -142,7 +142,7 @@ impl<T: Game> State<T> {
                 }
             }
         } else {
-            if terminated && self.state.is_lower_limit(fitness, self.player) {
+            if terminated && self.state.is_lower_bound(fitness, self.player) {
                 self.alpha = Some(fitness);
                 self.beta = Some(fitness);
                 self.best_fitness = Some(Branch::Equal(fitness));
@@ -214,13 +214,13 @@ impl<T: Game> State<T> {
         match (self.alpha, self.beta) {
             (Some(alpha), Some(beta)) if alpha >= beta => {
                 let branch = if self.active {
-                    if self.state.is_upper_limit(alpha, self.player) {
+                    if self.state.is_upper_bound(alpha, self.player) {
                         Branch::Equal(alpha)
                     } else {
                         Branch::Better(self.alpha.unwrap())
                     }
                 } else {
-                    if self.state.is_lower_limit(beta, self.player) {
+                    if self.state.is_lower_bound(beta, self.player) {
                         Branch::Equal(beta)
                     } else {
                         Branch::Worse(self.beta.unwrap())
@@ -581,7 +581,7 @@ impl<T: Game> Bot<T> {
         match self.minimax_with_path(path, updated_state, depth, alpha, None, condition) {
             Err(CancelledError) => RateAction::Cancelled(action),
             Ok(MiniMax::DeadEnd) => {
-                if state.is_upper_limit(fitness, self.player) {
+                if state.is_upper_bound(fitness, self.player) {
                     RateAction::UpperLimit(action)
                 } else {
                     terminated.add_complete(action, fitness);
@@ -589,7 +589,7 @@ impl<T: Game> Bot<T> {
                 }
             }
             Ok(MiniMax::Terminated(_path, Branch::Equal(fitness))) => {
-                if state.is_upper_limit(fitness, self.player) {
+                if state.is_upper_bound(fitness, self.player) {
                     RateAction::UpperLimit(action)
                 } else {
                     terminated.add_complete(action, fitness);

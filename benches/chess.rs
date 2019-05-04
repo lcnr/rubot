@@ -51,12 +51,12 @@ impl rubot::Game for Chess {
     }
 
     #[inline]
-    fn is_upper_limit(&self, fitness: Self::Fitness, _: Self::Player) -> bool {
+    fn is_upper_bound(&self, fitness: Self::Fitness, _: Self::Player) -> bool {
         fitness == std::i32::MAX
     }
 
     #[inline]
-    fn is_lower_limit(&self, fitness: Self::Fitness, _: Self::Player) -> bool {
+    fn is_lower_bound(&self, fitness: Self::Fitness, _: Self::Player) -> bool {
         fitness == std::i32::MIN
     }
 }

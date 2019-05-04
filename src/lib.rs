@@ -133,7 +133,7 @@ use std::time::{Duration, Instant};
 ///     }
 ///     
 ///     /// The fitness is only `true` if the game is won
-///     fn is_upper_limit(&self, fitness: Self::Fitness, player: Self::Player) -> bool {
+///     fn is_upper_bound(&self, fitness: Self::Fitness, player: Self::Player) -> bool {
 ///         fitness
 ///     }
 /// }
@@ -257,7 +257,7 @@ pub trait Game: Clone {
     ///
     /// A good example is a checkmate in chess, as there does not exist a better game state than having won.
     #[inline]
-    fn is_upper_limit(&self, fitness: Self::Fitness, player: Self::Player) -> bool {
+    fn is_upper_bound(&self, fitness: Self::Fitness, player: Self::Player) -> bool {
         let _ = (fitness, player);
         false
     }
@@ -266,14 +266,14 @@ pub trait Game: Clone {
     ///
     /// A good example is a checkmate in chess, as there does not exist a worse game state than having lost.
     #[inline]
-    fn is_lower_limit(&self, fitness: Self::Fitness, player: Self::Player) -> bool {
+    fn is_lower_bound(&self, fitness: Self::Fitness, player: Self::Player) -> bool {
         let _ = (fitness, player);
         false
     }
 }
 
-/// Converts a type into a [`RunCondition`][rc].
-/// It is recommended to mostly use [`Duration`][dur] .
+/// Converts a type into a [`RunCondition`][rc] used by [`Bot::select`][sel].
+/// It is recommended to mostly use [`Duration`][dur].
 ///
 /// # Examples
 ///
@@ -295,8 +295,23 @@ pub trait Game: Clone {
 /// # Bot;
 /// assert!(bot.select(&game, available_time).is_some())
 /// ```
+/// 
+/// # Implementations
+/// 
+/// - [`Duration`][dur]: `select` runs for the specified duration
+/// - [`ToCompletion`][complete]: `select` runs until it found the perfect action
+/// - [`Depth`][depth]: `select` analyses up the to given depth and returns to best action at that depth
+/// - [`Instant`][instant]: `select` runs until the given `Instant` is in the past
+/// - [`Logger`][logger]: takes another run condition and stores information about the last call to `select`
+/// 
 /// [rc]: trait.RunCondition.html
 /// [dur]: https://doc.rust-lang.org/std/time/struct.Duration.html
+/// [complete]: struct.ToCompletion.html
+/// [depth]: struct.Depth.html
+/// [instant]: https://doc.rust-lang.org/std/time/struct.Instant.html
+/// [logger]: struct.Logger.html
+/// [sel]: alpha_beta/struct.Bot.html#method.select
+/// 
 pub trait IntoRunCondition {
     type RunCondition: RunCondition;
 
@@ -364,13 +379,18 @@ impl IntoRunCondition for Duration {
     }
 }
 
-/// A condition which indicates if a [`Bot`][bot] should keep on running.
+/// A condition which indicates if a [`Bot::select`][sel] should keep on running.
 /// It is recommended to use [`Duration`][dur] for nearly all use cases.
+/// 
+/// A list of all already implemented `RunCondition`s can be found [here][into]
 ///
-/// [bot]: alpha_beta/struct.Bot.html
+/// [sel]: alpha_beta/struct.Bot.html#method.select
 /// [dur]: https://doc.rust-lang.org/std/time/struct.Duration.html
+/// [into]: trait.IntoRunCondition.html#implementations-1
 pub trait RunCondition {
+    /// Called at each search step, instantly stops all calculations by returning `false`.
     fn step(&mut self) -> bool;
+    /// Called after every finished search depth, instantly stops all calculations by returning `false`.
     fn depth(&mut self, depth: u32) -> bool;
 }
 

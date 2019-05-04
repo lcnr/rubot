@@ -442,7 +442,7 @@ impl rubot::Game for Game {
     /// as the player with more points win, this means that a bot
     /// can stop searching for better moves if the final score of
     /// another possible finished game is greater than 0
-    fn is_upper_limit(&self, fitness: Self::Fitness, _: Self::Player) -> bool {
+    fn is_upper_bound(&self, fitness: Self::Fitness, _: Self::Player) -> bool {
         fitness > 0
     }
 
@@ -450,7 +450,7 @@ impl rubot::Game for Game {
     /// as the player with more points win, this means that a bot
     /// can stop searching for worse moves if the final score of
     /// another possible finished game is less than 0
-    fn is_lower_limit(&self, fitness: Self::Fitness, _: Self::Player) -> bool {
+    fn is_lower_bound(&self, fitness: Self::Fitness, _: Self::Player) -> bool {
         fitness < 0
     }
 }

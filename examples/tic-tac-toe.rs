@@ -351,11 +351,11 @@ impl rubot::Game for Game {
         }
     }
 
-    fn is_upper_limit(&self, fitness: Self::Fitness, _: Self::Player) -> bool {
+    fn is_upper_bound(&self, fitness: Self::Fitness, _: Self::Player) -> bool {
         fitness == Fitness::Win
     }
 
-    fn is_lower_limit(&self, fitness: Self::Fitness, _: Self::Player) -> bool {
+    fn is_lower_bound(&self, fitness: Self::Fitness, _: Self::Player) -> bool {
         fitness == Fitness::Loss
     }
 }
