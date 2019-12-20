@@ -1,12 +1,14 @@
-# 0.1.0
+# Changelog
+
+## 0.1.0
 
 initial release
 
-## 0.1.1
+### 0.1.1
 
 fix docs
 
-# 0.2.0
+## 0.2.0
 
 this version was mostly focussed on improving `alpha_beta::Bot::select` and removing code duplication by changing `tree::Node`.
 
