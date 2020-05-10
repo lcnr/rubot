@@ -272,11 +272,11 @@ where
     }
 }
 
-/// contains data about already terminated paths
+/// Contains data about already terminated paths.
 struct Terminated<T: Game> {
-    /// the fitness of the best completely finished action
+    /// The fitness of the best completely finished action.
     best_action: Option<(T::Action, T::Fitness)>,
-    /// actions which terminated due to a cutoff, meaning that `fitness >= actual fitness`
+    /// Actions which terminated due to a cutoff, meaning that `fitness >= actual fitness`.
     partial: Vec<(T::Action, T::Fitness)>,
 }
 
@@ -304,7 +304,7 @@ where
 }
 
 impl<T: Game> Terminated<T> {
-    /// returns all partially terminated actions which might be better than `best_fitness`
+    /// Returns all partially terminated actions which might be better than `best_fitness`.
     #[inline]
     fn relevant_partials(&mut self, best_fitness: Option<T::Fitness>) -> Vec<T::Action> {
         let mut relevant = Vec::new();
