@@ -333,7 +333,7 @@ where
 }
 
 /// Can be converted into [`RunCondition`][rc] which returns `true` for the first `self.0` steps.
-/// This should only be used for debugging and testing as unlike `Duration`, `ToCompletion` or `Depth`, as
+/// This should only be used for debugging and testing as unlike `Duration`, `ToCompletion` or `Depth`,
 /// the total amount of steps needed is not directly indicative of search depth and can change between minor versions.
 ///
 /// [rc]: trait.RunCondition.html
