@@ -88,7 +88,7 @@ impl Node {
     }
 
     /// Generates a tree from `bytes`, the total amount of tree nodess, excluding the root,
-    /// is currently `cmp::max(, bytes.len() - 4)`.
+    /// is currently `cmp::max(0, bytes.len() - 4)`.
     ///
     /// The exact algorithm is not specified, so while the output is deterministic, it is not stable between versions
     /// and changing it will not be a breaking change.

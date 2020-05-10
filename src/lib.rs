@@ -132,7 +132,7 @@ use std::time::{Duration, Instant};
 ///         self.flags == 0 && player == self.winner()
 ///     }
 ///     
-///     /// The fitness is only `true` if the game is won
+///     /// The fitness is only `true` if the game is won.
 ///     fn is_upper_bound(&self, fitness: Self::Fitness, player: Self::Player) -> bool {
 ///         fitness
 ///     }
@@ -150,7 +150,7 @@ use std::time::{Duration, Instant};
 ///         game.remove_flags(player_b.select(&game, ToCompletion).unwrap());
 ///         if game.flags == 0 { break }
 ///     }
-///     // in case both players play perfectly, the player who begins should always win
+///     // In case both players play perfectly, the player who begins should always win.
 ///     assert_eq!(game.winner(), Player::A, "players are not playing optimally");
 /// }
 /// ```
@@ -189,13 +189,13 @@ use std::time::{Duration, Instant};
 /// [player]: trait.Game.html#associatedtype.player
 /// [examples]: https://github.com/lcnr/rubot/tree/master/examples
 pub trait Game: Clone {
-    /// the player type
+    /// The player type.
     type Player: Copy;
-    /// a executable action
+    /// An executable action.
     type Action: PartialEq;
-    /// the fitness of a state
+    /// The fitness of a state.
     type Fitness: Ord + Copy;
-    /// the collection returned by [`actions`][ac]
+    /// The collection returned by [`actions`][ac].
     ///
     /// [ac]:trait.Game.html#tymethod.actions
     type Actions: IntoIterator<Item = Self::Action>;

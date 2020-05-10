@@ -412,14 +412,14 @@ where
 ///     Node::new(false, 6),
 /// ]);
 ///
-/// // creates a new bot for the currently active player
+/// // Create a new bot for the currently active player.
 /// let mut bot = Bot::new(true);
 ///
-/// // finds the best possible action
+/// // Find the best possible action.
 /// let best = bot.select(&tree, ToCompletion);
-/// // searches for at most 2 seconds and returns the best answer found.
+/// // Search for at most 2 seconds and return the best answer found.
 /// // As 2 seconds are more than enough for this simple tree, this will
-/// // return the best possible action without spending this much time
+/// // return the best possible action without spending this much time.
 /// let limited = bot.select(&tree, Duration::from_secs(2));
 ///
 /// assert_eq!(best, Some(1));
@@ -461,7 +461,7 @@ impl<T: Game> Bot<T> {
         }
         actions.sort_by_cached_key(|a| state.look_ahead(&a, self.player));
 
-        // the best action which already terminated
+        // The best action which already terminated.
         let mut terminated = Terminated::default();
         let mut best_action: Option<BestAction<T>> = None;
         for depth in 0.. {

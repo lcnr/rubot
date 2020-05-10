@@ -1,4 +1,4 @@
-//! tests where the Bot is interrupted during computation
+//! Tests where the Bot is interrupted during computation.
 use super::*;
 
 /// `select` should always return `Some` if there is a possible action
