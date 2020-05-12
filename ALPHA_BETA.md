@@ -57,7 +57,7 @@ Walking through this decision tree from top to bottom, we know by visiting `[0]`
 there is a path with the fitness `6`. While analysing `[1]`, we realise that
 our opponent could chose `[1][0]`, which would result in a fitness of `3`.
 
-As `3` is worse than `6`, we can stop looking at `[1]` entirely, without having seen `[1][1]`.
+As `3` is smaller than `6`, we can stop looking at `[1]` entirely, without having seen `[1][1]`.
 
 It is also possible to apply this in the other direction:
 
@@ -74,9 +74,9 @@ While analysing `[0]`, the opponent first looks at `[0][0]` which ends up with a
 Once they see `[0][1][0]` with a fitness of `7`, they known that we would always be able to choose
 a path at `[0][1]` with a fitness `> 6`. This means that they are also able to skip `[0][1][1]` entirely.
 
-- `alpha`: the worst guaranteed fitness.
+- `alpha`: the smallest guaranteed fitness.
 - `beta`: the currently best value, which cannot be denied by the opponent.
-- `alpha cutoff`: skips paths where the opponent could choose an option which is worse than `alpha`.
+- `alpha cutoff`: skips paths where the opponent could choose an option which is smaller than `alpha`.
 - `beta cutoff`: while minimizing, skips paths where we could choose an option better than `beta`.
 
 ## Other optimizations
@@ -106,4 +106,4 @@ We therefore store all partially terminated arms with their best possible fitnes
 best possible fitness is greater than the current `alpha` value.
 
 The fitness of the best fully terminated path is used as the initial `alpha` value of future iterations.
-This means that all partially terminated paths, for which the best possible fitness is worse than this `alpha` value, can be ignored.
+This means that all partially terminated paths with a maximum fitness less than this `alpha` value can be ignored.
