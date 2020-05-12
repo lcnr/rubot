@@ -11,7 +11,7 @@ is active, and during minimizing depths the opponent is able to make a decision.
 
 - `a n` := the bot is active, meaning we want to take the path which results in the highest fitness.
     the node itself has a fitness of `n`.
-- `q n` := the opponent is active, meaning that we want to achieve the lowest possible fitness.
+- `o n` := the opponent is active, meaning that we want to achieve the lowest possible fitness.
 
 Paths are represented as indexing list of indices.
 
