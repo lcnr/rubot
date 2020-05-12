@@ -43,7 +43,7 @@ optimal action: [1], with fitness: 6
 ## Cutoffs
 
 Unlike the brute bot, alpha beta pruning allows us to skip subtrees if
-it is provable that they always result less desirable outcome than an already computed
+it is provable that they always result in a less desirable outcome than an already computed
 path.
 
 ```
