@@ -13,7 +13,7 @@ is active, and during minimizing depths the opponent is able to make a decision.
     the node itself has a fitness of `n`.
 - `o n` := the opponent is active, meaning that we want to achieve the lowest possible fitness.
 
-Paths are represented as indexing list of indices.
+Paths are represented as a list of indices.
 
 ## Examples
 
