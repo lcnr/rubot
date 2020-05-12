@@ -467,7 +467,7 @@ impl<T: Game> Bot<T> {
 
     /// Returns a chosen action based on the given game state.
     ///
-    /// This functions only returns  `None` if no `Action` is possible or the bot is currently not the active player .
+    /// Returns  `None` if no `Action` is possible or the bot is currently not the active player.
     ///
     /// This method runs until either the best possible action was found
     /// or one of `RunCondition::depth` and `RunCondition::step` returned `false`.
@@ -485,7 +485,6 @@ impl<T: Game> Bot<T> {
         }
         actions.sort_by_cached_key(|a| state.look_ahead(&a, self.player));
 
-        // The best action which already terminated.
         let mut terminated = Terminated::default();
         let mut best_action: Option<BestAction<T>> = None;
         for depth in 0.. {
@@ -579,15 +578,14 @@ impl<T: Game> Bot<T> {
                 }
             }
 
-            // all partially terminated actions are worse than all completely terminated actions
+            // All partially terminated actions are worse than all completely terminated actions.
             if actions.is_empty() && best_action.is_none() {
                 assert!(terminated.partial.is_empty());
-                break;
+                return Some(terminated.best_action.map(|(a, _f)| a).unwrap());
             }
         }
 
-        // all branches are terminated, as the loop is finished
-        Some(terminated.best_action.map(|(a, _f)| a).unwrap())
+        unreachable!();
     }
 
     fn rate_action<U: RunCondition>(
@@ -667,6 +665,12 @@ impl<T: Game> Bot<T> {
         game_states
     }
 
+    /// As we want to ignore as many possible subtrees as possible,
+    /// we start each depth by taking the best possible path of the
+    /// previous depth.
+    ///
+    /// As this path is hopefully also a good choice at this depth,
+    /// we very quickly get a good alpha/lower limit.
     fn minimax_with_path<U: RunCondition>(
         &mut self,
         mut path: Vec<T::Action>,
