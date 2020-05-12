@@ -188,6 +188,23 @@ fn fuzz_three() {
     assert_eq!(Bot::new(true).select(&fuzz_three, ToCompletion), Some(1));
 }
 
+#[test]
+fn fuzz_four() {
+    #[rustfmt::skip]
+    let fuzz_four = Node::root().with_children(&[
+        Node::new(true, 0).with_children(&[
+            Node::new(true, 32).with_children(&[
+                Node::new(false, 127),
+            ]),
+        ]),
+        Node::new(false, 0).with_children(&[
+            Node::new(false, 0),
+        ])
+    ]);
+
+    assert_eq!(Bot::new(true).select(&fuzz_four, ToCompletion), Some(0));
+}
+
 /// Tests for a bug which caused [0] to always return Terminated(Worse(1)), as [0][1][1]
 /// causes an alpha beta cutoff, returning Worse(1). This replaced Equal(1)
 /// because I accidentally wrote `old_fitness <= new_fitness` instead of

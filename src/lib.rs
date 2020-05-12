@@ -176,11 +176,11 @@ use std::time::{Duration, Instant};
 ///     type Actions = Vec<Self::Action>;
 ///     
 ///     fn actions(&self, player: Self::Player) -> (bool, Self::Actions) {
-///         unimplemented!("")
+///         unimplemented!();
 ///     }
 ///     
 ///     fn execute(&mut self, action: &Self::Action, player: Self::Player) -> Self::Fitness {
-///         unimplemented!("");
+///         unimplemented!();
 ///     }
 /// }
 /// ```

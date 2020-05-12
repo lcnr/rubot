@@ -2,7 +2,7 @@
 
 use crate::Game;
 use std::convert::TryInto;
-use std::fmt::{self, Debug, Formatter};
+use std::fmt::Debug;
 use std::num::Wrapping;
 use std::ops::Range;
 
@@ -26,21 +26,12 @@ use std::ops::Range;
 /// assert_eq!(bot.select(&tree, ToCompletion), Some(0));
 /// ```
 /// [game]: ../trait.Game.html
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Node {
     player: bool,
     // always from the perspective of the tested player
     fitness: i8,
     children: Vec<Node>,
-}
-
-impl Debug for Node {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        f.debug_struct("Node")
-            .field("player", &self.player)
-            .field("fitness", &self.fitness)
-            .finish()
-    }
 }
 
 impl Game for Node {
