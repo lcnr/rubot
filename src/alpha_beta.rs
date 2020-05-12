@@ -230,10 +230,7 @@ impl<T: Game> Bot<T> {
 
     /// Computes the next possible steps and sorts them to maximize
     /// cutoffs.
-    fn generate_game_states(
-        &self,
-        game_state: &T,
-    ) -> (bool, Vec<(T, T::Action, T::Fitness)>) {
+    fn generate_game_states(&self, game_state: &T) -> (bool, Vec<(T, T::Action, T::Fitness)>) {
         let (active, actions) = game_state.actions(self.player);
 
         let mut game_states: Vec<_> = actions
