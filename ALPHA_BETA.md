@@ -74,8 +74,8 @@ While analysing `[0]`, the opponent first looks at `[0][0]` which ends up with a
 Once they see `[0][1][0]` with a fitness of `7`, they known that we would always be able to choose
 a path at `[0][1]` with a fitness `> 6`. This means that they are also able to skip `[0][1][1]` entirely.
 
-- `alpha`: the smallest guaranteed fitness.
-- `beta`: the currently best value, which cannot be denied by the opponent.
+- `alpha`: the smallest guaranteed fitness at the current depth.
+- `beta`: the currently best value at the current depth, which cannot be denied by the opponent.
 - `alpha cutoff`: skips paths where the opponent could choose an option which is smaller than `alpha`.
 - `beta cutoff`: while minimizing, skips paths where we could choose an option better than `beta`.
 
