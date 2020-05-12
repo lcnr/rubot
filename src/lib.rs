@@ -379,10 +379,10 @@ impl IntoRunCondition for Duration {
     }
 }
 
-/// A condition which indicates if a [`Bot::select`][sel] should keep on running.
+/// A condition which indicates if [`Bot::select`][sel] should keep on running.
 /// It is recommended to use [`Duration`][dur] for nearly all use cases.
 ///
-/// A list of all already implemented `RunCondition`s can be found [here][into]
+/// A list of all already implemented `RunCondition`s can be found [here][into].
 ///
 /// [sel]: alpha_beta/struct.Bot.html#method.select
 /// [dur]: https://doc.rust-lang.org/std/time/struct.Duration.html

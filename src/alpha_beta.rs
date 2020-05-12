@@ -18,6 +18,23 @@ enum MiniMax<T: Game> {
     DeadEnd,
 }
 
+impl<T: Game> MiniMax<T> {
+    /// Appends an action to self.
+    pub fn with(self, action: T::Action, fitness: T::Fitness) -> MiniMax<T> {
+        match self {
+            MiniMax::DeadEnd => MiniMax::Terminated(vec![action], Branch::Equal(fitness)),
+            MiniMax::Open(mut actions, branch) => {
+                actions.push(action);
+                MiniMax::Open(actions, branch)
+            }
+            MiniMax::Terminated(mut actions, branch) => {
+                actions.push(action);
+                MiniMax::Terminated(actions, branch)
+            }
+        }
+    }
+}
+
 impl<T: Game> Debug for MiniMax<T>
 where
     T::Action: Debug,
@@ -111,19 +128,38 @@ impl<T: Game> State<T> {
         }
     }
 
-    fn update_best_action(&mut self, path: Vec<T::Action>, action: T::Action, fitness: Branch<T>) {
+    fn update_best_action(&mut self, path: Vec<T::Action>, fitness: Branch<T>) {
+        assert!(!path.is_empty());
+
         self.path = path;
-        self.path.push(action);
         self.best_fitness = Some(fitness);
     }
 
-    fn bind_equal(
-        &mut self,
-        path: Vec<T::Action>,
-        fitness: T::Fitness,
-        action: T::Action,
-        terminated: bool,
-    ) {
+    fn bind(&mut self, value: MiniMax<T>) {
+        match value {
+            MiniMax::DeadEnd => unreachable!(),
+            MiniMax::Terminated(path, Branch::Equal(fitness)) => {
+                self.bind_equal(path, fitness, true);
+            }
+            MiniMax::Terminated(path, Branch::Better(fitness)) => {
+                self.bind_better(path, fitness, true);
+            }
+            MiniMax::Terminated(path, Branch::Worse(fitness)) => {
+                self.bind_worse(path, fitness, true);
+            }
+            MiniMax::Open(path, Branch::Equal(fitness)) => {
+                self.bind_equal(path, fitness, false);
+            }
+            MiniMax::Open(path, Branch::Better(fitness)) => {
+                self.bind_better(path, fitness, false);
+            }
+            MiniMax::Open(path, Branch::Worse(fitness)) => {
+                self.bind_worse(path, fitness, false);
+            }
+        }
+    }
+
+    fn bind_equal(&mut self, path: Vec<T::Action>, fitness: T::Fitness, terminated: bool) {
         self.terminated &= terminated;
         if self.active {
             if terminated && self.state.is_upper_bound(fitness, self.player) {
@@ -138,7 +174,7 @@ impl<T: Game> State<T> {
                     .as_ref()
                     .map_or(true, |old| old.fitness() <= fitness)
                 {
-                    self.update_best_action(path, action, Branch::Equal(fitness));
+                    self.update_best_action(path, Branch::Equal(fitness));
                 }
             }
         } else {
@@ -154,19 +190,13 @@ impl<T: Game> State<T> {
                     .as_ref()
                     .map_or(true, |old| old.fitness() >= fitness)
                 {
-                    self.update_best_action(path, action, Branch::Equal(fitness));
+                    self.update_best_action(path, Branch::Equal(fitness));
                 }
             }
         }
     }
 
-    fn bind_better(
-        &mut self,
-        path: Vec<T::Action>,
-        fitness: T::Fitness,
-        action: T::Action,
-        terminated: bool,
-    ) {
+    fn bind_better(&mut self, path: Vec<T::Action>, fitness: T::Fitness, terminated: bool) {
         self.terminated &= terminated;
         if self.active {
             debug_assert!(self.alpha.map_or(true, |value| value <= fitness));
@@ -175,23 +205,17 @@ impl<T: Game> State<T> {
                 .best_fitness
                 .as_ref()
                 .map_or(true, |value| value.fitness() <= fitness));
-            self.update_best_action(path, action, Branch::Better(fitness));
+            self.update_best_action(path, Branch::Better(fitness));
         } else if self
             .best_fitness
             .as_ref()
             .map_or(true, |old| old.fitness() > fitness)
         {
-            self.update_best_action(path, action, Branch::Better(fitness))
+            self.update_best_action(path, Branch::Better(fitness))
         }
     }
 
-    fn bind_worse(
-        &mut self,
-        path: Vec<T::Action>,
-        fitness: T::Fitness,
-        action: T::Action,
-        terminated: bool,
-    ) {
+    fn bind_worse(&mut self, path: Vec<T::Action>, fitness: T::Fitness, terminated: bool) {
         self.terminated &= terminated;
         if !self.active {
             debug_assert!(self.beta.map_or(true, |value| value >= fitness));
@@ -200,13 +224,13 @@ impl<T: Game> State<T> {
                 .best_fitness
                 .as_ref()
                 .map_or(true, |value| value.fitness() >= fitness));
-            self.update_best_action(path, action, Branch::Worse(fitness));
+            self.update_best_action(path, Branch::Worse(fitness));
         } else if self
             .best_fitness
             .as_ref()
             .map_or(true, |old| old.fitness() < fitness)
         {
-            self.update_best_action(path, action, Branch::Worse(fitness))
+            self.update_best_action(path, Branch::Worse(fitness))
         }
     }
 
@@ -612,11 +636,9 @@ impl<T: Game> Bot<T> {
                     RateAction::Worse(action)
                 }
             }
-            Ok(MiniMax::Terminated(_path, Branch::Better(_))) => {
-                unreachable!("terminated beta cutoff at highest depth");
-            }
-            Ok(MiniMax::Open(_path, Branch::Better(_))) => {
-                unreachable!("open beta cutoff at highest depth");
+            Ok(MiniMax::Terminated(_, Branch::Better(_)))
+            | Ok(MiniMax::Open(_, Branch::Better(_))) => {
+                unreachable!("beta cutoff at highest depth");
             }
         }
     }
@@ -643,37 +665,6 @@ impl<T: Game> Bot<T> {
         }
 
         game_states
-    }
-
-    fn minimax_use_result(
-        result: MiniMax<T>,
-        state: &mut State<T>,
-        action: T::Action,
-        fitness: T::Fitness,
-    ) {
-        match result {
-            MiniMax::DeadEnd => {
-                state.bind_equal(Vec::new(), fitness, action, true);
-            }
-            MiniMax::Terminated(path, Branch::Equal(fitness)) => {
-                state.bind_equal(path, fitness, action, true);
-            }
-            MiniMax::Terminated(path, Branch::Better(fitness)) => {
-                state.bind_better(path, fitness, action, true);
-            }
-            MiniMax::Terminated(path, Branch::Worse(fitness)) => {
-                state.bind_worse(path, fitness, action, true);
-            }
-            MiniMax::Open(path, Branch::Equal(fitness)) => {
-                state.bind_equal(path, fitness, action, false);
-            }
-            MiniMax::Open(path, Branch::Better(fitness)) => {
-                state.bind_better(path, fitness, action, false);
-            }
-            MiniMax::Open(path, Branch::Worse(fitness)) => {
-                state.bind_worse(path, fitness, action, false);
-            }
-        }
     }
 
     fn minimax_with_path<U: RunCondition>(
@@ -704,7 +695,7 @@ impl<T: Game> Bot<T> {
                     Some(idx) => {
                         let (game_state, action, fitness) = game_states.remove(idx);
 
-                        Self::minimax_use_result(
+                        state.bind(
                             self.minimax_with_path(
                                 path,
                                 game_state,
@@ -712,10 +703,8 @@ impl<T: Game> Bot<T> {
                                 state.alpha,
                                 state.beta,
                                 condition,
-                            )?,
-                            &mut state,
-                            action,
-                            fitness,
+                            )?
+                            .with(action, fitness),
                         );
 
                         if let Some(cutoff) = state.cutoff() {
@@ -730,11 +719,9 @@ impl<T: Game> Bot<T> {
                         return Ok(cutoff);
                     }
 
-                    Self::minimax_use_result(
-                        self.minimax(game_state, depth - 1, state.alpha, state.beta, condition)?,
-                        &mut state,
-                        action,
-                        fitness,
+                    state.bind(
+                        self.minimax(game_state, depth - 1, state.alpha, state.beta, condition)?
+                            .with(action, fitness),
                     );
                 }
 
@@ -782,11 +769,9 @@ impl<T: Game> Bot<T> {
                     return Ok(cutoff);
                 }
 
-                Self::minimax_use_result(
-                    self.minimax(game_state, depth - 1, state.alpha, state.beta, condition)?,
-                    &mut state,
-                    action,
-                    fitness,
+                state.bind(
+                    self.minimax(game_state, depth - 1, state.alpha, state.beta, condition)?
+                        .with(action, fitness),
                 );
             }
 
