@@ -105,5 +105,5 @@ More interestingly, we can have arms which did not reach the current depth `n` a
 We therefore store all partially terminated arms with their best possible fitness, and only retest them in future iterations if their
 best possible fitness is greater than the current `alpha` value.
 
-As the use the fitness of the best fully terminated paths as the `alpha` value of future iterations, all partially terminated paths for
-which the best possible fitness is worse than this `alpha` can be ignored.
+The fitness of the best fully terminated path is used as the initial `alpha` value of future iterations.
+This means that all partially terminated paths, for which the best possible fitness is worse than this `alpha` value, can be ignored.
