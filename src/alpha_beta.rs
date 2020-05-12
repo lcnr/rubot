@@ -694,6 +694,10 @@ impl<T: Game> Terminated<T> {
         relevant
     }
 
+    /// Updates `self.best_action` in case the new action has a higher fitness.
+    ///
+    /// This also removes all partially terminated actions with a worse maximum fitness,
+    /// as they are now irrelevant.
     fn add_complete(&mut self, action: T::Action, fitness: T::Fitness) {
         if self.best_fitness().map_or(true, |best| best < fitness) {
             self.best_action = Some((action, fitness));
@@ -701,6 +705,8 @@ impl<T: Game> Terminated<T> {
         }
     }
 
+    /// Adds a new partially finished action in case its maximum fitness is
+    /// greater than the fitness of the best completely terminated action.
     fn add_partial(&mut self, action: T::Action, fitness: T::Fitness) {
         if self.best_fitness().map_or(true, |best| best < fitness) {
             self.partial.push((action, fitness));
