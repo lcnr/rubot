@@ -6,6 +6,8 @@ use std::cmp;
 use std::fmt::{self, Debug};
 use std::mem;
 
+mod debug;
+
 /// A game bot which analyses its moves using [alpha beta pruning][ab_wiki] with [iterative deepening][id]. In case [`select`][sel] terminates
 /// before `condition` returned true, the result is always the best possible move. While this bot caches some data
 /// during computation, it does not require a lot of memory and will not store anything between different [`select`][sel] calls.
@@ -270,49 +272,50 @@ impl<T: Game> Bot<T> {
             return Err(CancelledError);
         }
 
-        match path.pop() {
-            None => self.minimax(game_state, depth, alpha, beta, condition),
-            Some(action) => {
-                if depth == 0 {
-                    unreachable!("lowest depth with non empty path");
+        let action = if let Some(action) = path.pop() {
+            action
+        } else {
+            return self.minimax(game_state, depth, alpha, beta, condition);
+        };
+
+        if depth == 0 {
+            unreachable!("lowest depth with non empty path");
+        }
+
+        let (active, mut game_states) = self.generate_game_states(&game_state);
+
+        let mut state = State::new(game_state, self.player, alpha, None, active);
+        match game_states.iter().position(|(_, a, _)| *a == action) {
+            Some(idx) => {
+                let (game_state, action, fitness) = game_states.remove(idx);
+
+                if let Some(cutoff) = state.bind(
+                    self.minimax_with_path(
+                        path,
+                        game_state,
+                        depth - 1,
+                        state.alpha,
+                        state.beta,
+                        condition,
+                    )?
+                    .with(action, fitness),
+                ) {
+                    return Ok(cutoff);
                 }
+            }
+            None => unreachable!("path segment not found"),
+        }
 
-                let (active, mut game_states) = self.generate_game_states(&game_state);
-
-                let mut state = State::new(game_state, self.player, alpha, None, active);
-                match game_states.iter().position(|(_, a, _)| *a == action) {
-                    Some(idx) => {
-                        let (game_state, action, fitness) = game_states.remove(idx);
-
-                        if let Some(cutoff) = state.bind(
-                            self.minimax_with_path(
-                                path,
-                                game_state,
-                                depth - 1,
-                                state.alpha,
-                                state.beta,
-                                condition,
-                            )?
-                            .with(action, fitness),
-                        ) {
-                            return Ok(cutoff);
-                        }
-                    }
-                    None => unreachable!("path segment not found"),
-                }
-
-                for (game_state, action, fitness) in game_states.into_iter().rev() {
-                    if let Some(cutoff) = state.bind(
-                        self.minimax(game_state, depth - 1, state.alpha, state.beta, condition)?
-                            .with(action, fitness),
-                    ) {
-                        return Ok(cutoff);
-                    }
-                }
-
-                Ok(state.consume())
+        for (game_state, action, fitness) in game_states.into_iter().rev() {
+            if let Some(cutoff) = state.bind(
+                self.minimax(game_state, depth - 1, state.alpha, state.beta, condition)?
+                    .with(action, fitness),
+            ) {
+                return Ok(cutoff);
             }
         }
+
+        Ok(state.consume())
     }
 
     fn minimax<U: RunCondition>(
@@ -324,8 +327,10 @@ impl<T: Game> Bot<T> {
         condition: &mut U,
     ) -> Result<MiniMax<T>, CancelledError> {
         if !condition.step() {
-            Err(CancelledError)
-        } else if depth == 0 {
+            return Err(CancelledError);
+        }
+
+        if depth == 0 {
             let (active, actions) = game_state.actions(self.player);
             let actions = actions.into_iter().map(|action| {
                 let fitness = game_state.look_ahead(&action, self.player);
@@ -337,28 +342,28 @@ impl<T: Game> Bot<T> {
                 actions.min_by_key(|(_, fitness)| *fitness)
             };
 
-            Ok(selected.map_or(MiniMax::DeadEnd, |(action, fitness)| {
+            return Ok(selected.map_or(MiniMax::DeadEnd, |(action, fitness)| {
                 MiniMax::Open(vec![action], Branch::Equal(fitness))
-            }))
-        } else {
-            let (active, game_states) = self.generate_game_states(&game_state);
-
-            if game_states.is_empty() {
-                return Ok(MiniMax::DeadEnd);
-            }
-
-            let mut state = State::new(game_state, self.player, alpha, beta, active);
-            for (game_state, action, fitness) in game_states.into_iter().rev() {
-                if let Some(cutoff) = state.bind(
-                    self.minimax(game_state, depth - 1, state.alpha, state.beta, condition)?
-                        .with(action, fitness),
-                ) {
-                    return Ok(cutoff);
-                }
-            }
-
-            Ok(state.consume())
+            }));
         }
+
+        let (active, game_states) = self.generate_game_states(&game_state);
+
+        if game_states.is_empty() {
+            return Ok(MiniMax::DeadEnd);
+        }
+
+        let mut state = State::new(game_state, self.player, alpha, beta, active);
+        for (game_state, action, fitness) in game_states.into_iter().rev() {
+            if let Some(cutoff) = state.bind(
+                self.minimax(game_state, depth - 1, state.alpha, state.beta, condition)?
+                    .with(action, fitness),
+            ) {
+                return Ok(cutoff);
+            }
+        }
+
+        Ok(state.consume())
     }
 }
 
@@ -387,20 +392,6 @@ impl<T: Game> MiniMax<T> {
                 actions.push(action);
                 MiniMax::Terminated(actions, branch)
             }
-        }
-    }
-}
-
-impl<T: Game> Debug for MiniMax<T>
-where
-    T::Action: Debug,
-    T::Fitness: Debug,
-{
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            MiniMax::Terminated(path, branch) => write!(f, "Terminated({:?}, {:?})", path, branch),
-            MiniMax::Open(path, branch) => write!(f, "Open({:?}, {:?})", path, branch),
-            MiniMax::DeadEnd => write!(f, "DeadEnd"),
         }
     }
 }
@@ -445,23 +436,6 @@ struct State<T: Game> {
     path: Vec<T::Action>,
     terminated: bool,
     active: bool,
-}
-
-impl<T: Game> Debug for State<T>
-where
-    T::Action: Debug,
-    T::Fitness: Debug,
-{
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_struct("BestAction")
-            .field("alpha", &self.alpha)
-            .field("beta", &self.beta)
-            .field("best_fitness", &self.best_fitness)
-            .field("path", &self.path)
-            .field("terminated", &self.terminated)
-            .field("active", &self.active)
-            .finish()
-    }
 }
 
 impl<T: Game> State<T> {
@@ -514,21 +488,23 @@ impl<T: Game> State<T> {
             }
         }
 
-        let branch = match (self.alpha, self.beta) {
-            (Some(alpha), _) if self.active && self.state.is_upper_bound(alpha, self.player) => {
-                Branch::Equal(alpha)
+        let branch = match self.best_fitness {
+            Some(Branch::Equal(fitness))
+                if (self.active && self.state.is_upper_bound(fitness, self.player))
+                    || (!self.active && self.state.is_lower_bound(fitness, self.player)) =>
+            {
+                Branch::Equal(fitness)
             }
-            (_, Some(beta)) if !self.active && self.state.is_lower_bound(beta, self.player) => {
-                Branch::Equal(beta)
-            }
-            (Some(alpha), Some(beta)) if alpha >= beta => {
-                if self.active {
-                    Branch::Better(self.alpha.unwrap())
-                } else {
-                    Branch::Worse(self.beta.unwrap())
+            _ => match (self.alpha, self.beta) {
+                (Some(alpha), Some(beta)) if alpha >= beta => {
+                    if self.active {
+                        Branch::Better(self.alpha.unwrap())
+                    } else {
+                        Branch::Worse(self.beta.unwrap())
+                    }
                 }
-            }
-            _ => return None,
+                _ => return None,
+            },
         };
 
         if self.terminated {
@@ -634,20 +610,6 @@ struct BestAction<T: Game> {
     path: Vec<T::Action>,
 }
 
-impl<T: Game> Debug for BestAction<T>
-where
-    T::Action: Debug,
-    T::Fitness: Debug,
-{
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_struct("BestAction")
-            .field("action", &self.action)
-            .field("fitness", &self.fitness)
-            .field("path", &self.path)
-            .finish()
-    }
-}
-
 /// Contains data about already terminated paths.
 struct Terminated<T: Game> {
     /// The fitness of the best completely finished action.
@@ -666,19 +628,6 @@ impl<T: Game> Default for Terminated<T> {
     }
 }
 
-impl<T: Game> Debug for Terminated<T>
-where
-    T::Action: Debug,
-    T::Fitness: Debug,
-{
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_struct("Terminated")
-            .field("best_action", &self.best_action)
-            .field("partial", &self.partial)
-            .finish()
-    }
-}
-
 impl<T: Game> Terminated<T> {
     /// Returns all partially terminated actions which might be better than `best_fitness`.
     #[inline]
@@ -694,6 +643,10 @@ impl<T: Game> Terminated<T> {
         relevant
     }
 
+    /// Updates `self.best_action` in case the new action has a higher fitness.
+    ///
+    /// This also removes all partially terminated actions with a worse maximum fitness,
+    /// as they are now irrelevant.
     fn add_complete(&mut self, action: T::Action, fitness: T::Fitness) {
         if self.best_fitness().map_or(true, |best| best < fitness) {
             self.best_action = Some((action, fitness));
@@ -701,6 +654,8 @@ impl<T: Game> Terminated<T> {
         }
     }
 
+    /// Adds a new partially finished action in case its maximum fitness is
+    /// greater than the fitness of the best completely terminated action.
     fn add_partial(&mut self, action: T::Action, fitness: T::Fitness) {
         if self.best_fitness().map_or(true, |best| best < fitness) {
             self.partial.push((action, fitness));

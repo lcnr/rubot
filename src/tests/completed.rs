@@ -205,6 +205,25 @@ fn fuzz_four() {
     assert_eq!(Bot::new(true).select(&fuzz_four, ToCompletion), Some(0));
 }
 
+/// There was a time where we handled bounds wrong. We used `alpha` and `beta`
+/// for upper and lower limits, but did not check this correctly in all cases.
+#[test]
+fn fuzz_five() {
+    #[rustfmt::skip]
+    let fuzz_five = Node::root().with_children(&[
+        Node::new(true, -26).with_children(&[
+            Node::new(true, 0),
+        ]),
+        Node::new(false, 32).with_children(&[
+            Node::new(true, 127).with_children(&[
+                Node::new(false, 127),
+            ])
+        ])
+    ]);
+
+    assert_eq!(Bot::new(true).select(&fuzz_five, ToCompletion), Some(1));
+}
+
 /// Tests for a bug which caused [0] to always return Terminated(Worse(1)), as [0][1][1]
 /// causes an alpha beta cutoff, returning Worse(1). This replaced Equal(1)
 /// because I accidentally wrote `old_fitness <= new_fitness` instead of
