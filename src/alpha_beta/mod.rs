@@ -6,6 +6,8 @@ use std::cmp;
 use std::fmt::{self, Debug};
 use std::mem;
 
+mod debug;
+
 /// A game bot which analyses its moves using [alpha beta pruning][ab_wiki] with [iterative deepening][id]. In case [`select`][sel] terminates
 /// before `condition` returned true, the result is always the best possible move. While this bot caches some data
 /// during computation, it does not require a lot of memory and will not store anything between different [`select`][sel] calls.
@@ -391,20 +393,6 @@ impl<T: Game> MiniMax<T> {
     }
 }
 
-impl<T: Game> Debug for MiniMax<T>
-where
-    T::Action: Debug,
-    T::Fitness: Debug,
-{
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            MiniMax::Terminated(path, branch) => write!(f, "Terminated({:?}, {:?})", path, branch),
-            MiniMax::Open(path, branch) => write!(f, "Open({:?}, {:?})", path, branch),
-            MiniMax::DeadEnd => write!(f, "DeadEnd"),
-        }
-    }
-}
-
 enum Branch<T: Game> {
     /// `actual_fitness <= fitness`
     Worse(T::Fitness),
@@ -445,23 +433,6 @@ struct State<T: Game> {
     path: Vec<T::Action>,
     terminated: bool,
     active: bool,
-}
-
-impl<T: Game> Debug for State<T>
-where
-    T::Action: Debug,
-    T::Fitness: Debug,
-{
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_struct("BestAction")
-            .field("alpha", &self.alpha)
-            .field("beta", &self.beta)
-            .field("best_fitness", &self.best_fitness)
-            .field("path", &self.path)
-            .field("terminated", &self.terminated)
-            .field("active", &self.active)
-            .finish()
-    }
 }
 
 impl<T: Game> State<T> {
@@ -636,20 +607,6 @@ struct BestAction<T: Game> {
     path: Vec<T::Action>,
 }
 
-impl<T: Game> Debug for BestAction<T>
-where
-    T::Action: Debug,
-    T::Fitness: Debug,
-{
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_struct("BestAction")
-            .field("action", &self.action)
-            .field("fitness", &self.fitness)
-            .field("path", &self.path)
-            .finish()
-    }
-}
-
 /// Contains data about already terminated paths.
 struct Terminated<T: Game> {
     /// The fitness of the best completely finished action.
@@ -665,19 +622,6 @@ impl<T: Game> Default for Terminated<T> {
             best_action: None,
             partial: Vec::new(),
         }
-    }
-}
-
-impl<T: Game> Debug for Terminated<T>
-where
-    T::Action: Debug,
-    T::Fitness: Debug,
-{
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_struct("Terminated")
-            .field("best_action", &self.best_action)
-            .field("partial", &self.partial)
-            .finish()
     }
 }
 
