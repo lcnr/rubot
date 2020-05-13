@@ -514,21 +514,23 @@ impl<T: Game> State<T> {
             }
         }
 
-        let branch = match (self.alpha, self.beta) {
-            (Some(alpha), _) if self.active && self.state.is_upper_bound(alpha, self.player) => {
-                Branch::Equal(alpha)
+        let branch = match self.best_fitness {
+            Some(Branch::Equal(fitness))
+                if (self.active && self.state.is_upper_bound(fitness, self.player))
+                    || (!self.active && self.state.is_lower_bound(fitness, self.player)) =>
+            {
+                Branch::Equal(fitness)
             }
-            (_, Some(beta)) if !self.active && self.state.is_lower_bound(beta, self.player) => {
-                Branch::Equal(beta)
-            }
-            (Some(alpha), Some(beta)) if alpha >= beta => {
-                if self.active {
-                    Branch::Better(self.alpha.unwrap())
-                } else {
-                    Branch::Worse(self.beta.unwrap())
+            _ => match (self.alpha, self.beta) {
+                (Some(alpha), Some(beta)) if alpha >= beta => {
+                    if self.active {
+                        Branch::Better(self.alpha.unwrap())
+                    } else {
+                        Branch::Worse(self.beta.unwrap())
+                    }
                 }
-            }
-            _ => return None,
+                _ => return None,
+            },
         };
 
         if self.terminated {

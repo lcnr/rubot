@@ -295,10 +295,10 @@ fn main() {
 }
 
 // <----------------------------------------------------------------->
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub struct Action(usize, usize);
 
-#[derive(Copy, Clone, PartialOrd, Ord, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialOrd, Ord, PartialEq, Eq)]
 pub enum Fitness {
     Loss,
     /// the game is still ongoing or a tie
