@@ -9,9 +9,20 @@ the resulting fitness.
 In a competitive two player game, maximizing depths are the turns in which the bot
 is active, and during minimizing depths the opponent is able to make a decision.
 
+Let's first introduce the notation used from now on:
+
 - `a n` := the bot is active, meaning we want to take the path which results in the highest fitness.
     the node itself has a fitness of `n`.
 - `o n` := the opponent is active, meaning that we want to achieve the lowest possible fitness.
+
+Each level of indentatation represents one action.
+```
+- a 0
+  - o 7
+  - o 3
+```
+The above tree means that the bot is active and has the choice between the action `[0]`,
+with a fitness of `7` and `[1]` with a fitness of 3. To maximise the fitness, `[0]` would be chosen.
 
 Paths are represented as a list of indices.
 
@@ -23,17 +34,25 @@ a 0
   - a 7  # child 1
 
 optimal action: [0], with fitness: 12
+```
 
+If the bot is able to analyse the complete decision tree, only the leaf nodes are relevant.
+
+```
 a 0
   - a 12
     - a 6
   - a 7
 
 optimal action: [1], with fitness: 7
+```
 
+While the bot wants to maximise the achieved fitness, the opponent is expected
+to choose the path with the worst fitness.
+```
 a 0
   - o 12
-    - a 3
+    - a 3 # The opponent would choose this, changing [0] to have a fitness of 3
     - a 7
   - a 6
 

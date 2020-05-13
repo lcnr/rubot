@@ -326,8 +326,10 @@ impl<T: Game> Bot<T> {
         condition: &mut U,
     ) -> Result<MiniMax<T>, CancelledError> {
         if !condition.step() {
-            Err(CancelledError)
-        } else if depth == 0 {
+            return Err(CancelledError);
+        }
+
+        if depth == 0 {
             let (active, actions) = game_state.actions(self.player);
             let actions = actions.into_iter().map(|action| {
                 let fitness = game_state.look_ahead(&action, self.player);
@@ -339,28 +341,28 @@ impl<T: Game> Bot<T> {
                 actions.min_by_key(|(_, fitness)| *fitness)
             };
 
-            Ok(selected.map_or(MiniMax::DeadEnd, |(action, fitness)| {
+            return Ok(selected.map_or(MiniMax::DeadEnd, |(action, fitness)| {
                 MiniMax::Open(vec![action], Branch::Equal(fitness))
-            }))
-        } else {
-            let (active, game_states) = self.generate_game_states(&game_state);
-
-            if game_states.is_empty() {
-                return Ok(MiniMax::DeadEnd);
-            }
-
-            let mut state = State::new(game_state, self.player, alpha, beta, active);
-            for (game_state, action, fitness) in game_states.into_iter().rev() {
-                if let Some(cutoff) = state.bind(
-                    self.minimax(game_state, depth - 1, state.alpha, state.beta, condition)?
-                        .with(action, fitness),
-                ) {
-                    return Ok(cutoff);
-                }
-            }
-
-            Ok(state.consume())
+            }));
         }
+
+        let (active, game_states) = self.generate_game_states(&game_state);
+
+        if game_states.is_empty() {
+            return Ok(MiniMax::DeadEnd);
+        }
+
+        let mut state = State::new(game_state, self.player, alpha, beta, active);
+        for (game_state, action, fitness) in game_states.into_iter().rev() {
+            if let Some(cutoff) = state.bind(
+                self.minimax(game_state, depth - 1, state.alpha, state.beta, condition)?
+                    .with(action, fitness),
+            ) {
+                return Ok(cutoff);
+            }
+        }
+
+        Ok(state.consume())
     }
 }
 
