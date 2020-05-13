@@ -33,7 +33,7 @@ Paths are represented as a list of indices.
 ## Examples
 
 ```
-a 0
+- a 0
   - a 12 # child 0
   - a 7  # child 1
 
@@ -43,7 +43,7 @@ optimal action: [0], with fitness: 12
 If the bot is able to analyse the complete decision tree, only the leaf nodes are relevant.
 
 ```
-a 0
+- a 0
   - a 12
     - a 6
   - a 7
@@ -54,7 +54,7 @@ optimal action: [1], with fitness: 7
 While the bot wants to maximise the achieved fitness, the opponent is expected
 to choose the path with the worst fitness.
 ```
-a 0
+- a 0
   - o 12
     - a 3 # The opponent would choose this, changing [0] to have a fitness of 3
     - a 7
@@ -70,7 +70,7 @@ it is provable that they always result in a less desirable outcome than an alrea
 path.
 
 ```
-a 0
+- a 0
   - a 6
   - o 12
     - a 3
@@ -85,7 +85,7 @@ As `3` is smaller than `6`, we can stop looking at `[1]` entirely, without havin
 It is also possible to apply this in the other direction:
 
 ```
-a 0
+- a 0
  - o 0
    - a 6
    - a 0
@@ -101,6 +101,24 @@ a path at `[0][1]` with a fitness `> 6`. This means that they are also able to s
 - `beta`: the worst already certainly achievable fitness by the opponent.
 - `alpha cutoff`: skips paths where the opponent could choose an option which is smaller than `alpha`.
 - `beta cutoff`: while minimizing, skips paths where we could choose an option better than `beta`.
+
+It is of note that `alpha` can only be changed while maximizing, and `beta` is only
+changed while minimizing.
+
+Let's look at the actual `alpha` and `beta` values while we traverse the above tree depth first:
+
+```
+- a 0
+ - o 0
+   - a 6     1. alpha: None      beta: Some(6)
+   - a 0
+     - a 7   2. alpha: Some(7)   beta: Some(6) => cutoff
+     - a 3   3. skipped
+```
+
+Both alpha and beta do not propagate upwards however.
+
+TODO: Add an example here, improve examples in general.
 
 ## Other optimizations
 
