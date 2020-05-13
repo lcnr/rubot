@@ -9,6 +9,10 @@ the resulting fitness.
 In a competitive two player game, maximizing depths are the turns in which the bot
 is active, and during minimizing depths the opponent is able to make a decision.
 
+Note that we do not expect a specific order of minimizing and maximizing turns.
+It is for example completely valid to have a game in which some actions allow additional actions
+for a player.
+
 Let's first introduce the notation used from now on:
 
 - `a n` := the bot is active, meaning we want to take the path which results in the highest fitness.

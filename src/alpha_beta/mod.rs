@@ -272,49 +272,50 @@ impl<T: Game> Bot<T> {
             return Err(CancelledError);
         }
 
-        match path.pop() {
-            None => self.minimax(game_state, depth, alpha, beta, condition),
-            Some(action) => {
-                if depth == 0 {
-                    unreachable!("lowest depth with non empty path");
+        let action = if let Some(action) = path.pop() {
+            action
+        } else {
+            return self.minimax(game_state, depth, alpha, beta, condition);
+        };
+
+        if depth == 0 {
+            unreachable!("lowest depth with non empty path");
+        }
+
+        let (active, mut game_states) = self.generate_game_states(&game_state);
+
+        let mut state = State::new(game_state, self.player, alpha, None, active);
+        match game_states.iter().position(|(_, a, _)| *a == action) {
+            Some(idx) => {
+                let (game_state, action, fitness) = game_states.remove(idx);
+
+                if let Some(cutoff) = state.bind(
+                    self.minimax_with_path(
+                        path,
+                        game_state,
+                        depth - 1,
+                        state.alpha,
+                        state.beta,
+                        condition,
+                    )?
+                    .with(action, fitness),
+                ) {
+                    return Ok(cutoff);
                 }
+            }
+            None => unreachable!("path segment not found"),
+        }
 
-                let (active, mut game_states) = self.generate_game_states(&game_state);
-
-                let mut state = State::new(game_state, self.player, alpha, None, active);
-                match game_states.iter().position(|(_, a, _)| *a == action) {
-                    Some(idx) => {
-                        let (game_state, action, fitness) = game_states.remove(idx);
-
-                        if let Some(cutoff) = state.bind(
-                            self.minimax_with_path(
-                                path,
-                                game_state,
-                                depth - 1,
-                                state.alpha,
-                                state.beta,
-                                condition,
-                            )?
-                            .with(action, fitness),
-                        ) {
-                            return Ok(cutoff);
-                        }
-                    }
-                    None => unreachable!("path segment not found"),
-                }
-
-                for (game_state, action, fitness) in game_states.into_iter().rev() {
-                    if let Some(cutoff) = state.bind(
-                        self.minimax(game_state, depth - 1, state.alpha, state.beta, condition)?
-                            .with(action, fitness),
-                    ) {
-                        return Ok(cutoff);
-                    }
-                }
-
-                Ok(state.consume())
+        for (game_state, action, fitness) in game_states.into_iter().rev() {
+            if let Some(cutoff) = state.bind(
+                self.minimax(game_state, depth - 1, state.alpha, state.beta, condition)?
+                    .with(action, fitness),
+            ) {
+                return Ok(cutoff);
             }
         }
+
+        Ok(state.consume())
     }
 
     fn minimax<U: RunCondition>(
