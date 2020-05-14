@@ -341,11 +341,11 @@ impl<'a, T: Game> Ctxt<'a, T> {
         on_cancel: impl FnOnce(&mut Self, Action<T>) -> Action<T>,
     ) -> Option<Action<T>> {
         let mut updated_state = self.state.clone();
-        let mut path = action.path.clone();
+        let (start, rest) = action.path.split_last().expect("unexpected empty path");
 
-        let fitness = updated_state.execute(&path.pop().unwrap(), self.player);
+        let fitness = updated_state.execute(start, self.player);
         match self.minimax_with_path(
-            path.into_iter().rev(),
+            rest.iter().cloned().rev(),
             updated_state,
             depth,
             self.best
