@@ -1,6 +1,7 @@
 //! A deterministic game bot using alpha beta pruning.
-
 use crate::{Game, IntoRunCondition, RunCondition};
+
+use tapir::Tap;
 
 use std::cmp;
 use std::mem;
@@ -167,9 +168,17 @@ enum MiniMax<T: Game> {
 
 impl<T: Game> MiniMax<T> {
     /// Appends an action to self.
-    pub fn with(self, action: T::Action, fitness: T::Fitness) -> MiniMax<T> {
+    pub fn with(
+        self,
+        ctxt: &mut Ctxt<'_, T>,
+        action: T::Action,
+        fitness: T::Fitness,
+    ) -> MiniMax<T> {
         match self {
-            MiniMax::DeadEnd => MiniMax::Terminated(vec![action], Branch::Equal(fitness)),
+            MiniMax::DeadEnd => MiniMax::Terminated(
+                ctxt.new_path().tap(|p| p.push(action)),
+                Branch::Equal(fitness),
+            ),
             MiniMax::Open(mut actions, branch) => {
                 actions.push(action);
                 MiniMax::Open(actions, branch)
@@ -211,7 +220,7 @@ struct Action<T: Game> {
     fitness: T::Fitness,
     /// The expected path taken during optimal play, when only  inspectnig up to the current depth.
     ///
-    /// This is ordered with `path.remove(0)` being the first action.
+    /// This used as a stack, with `path.pop()` being the first action.
     path: Vec<T::Action>,
 }
 
@@ -233,6 +242,11 @@ pub struct Ctxt<'a, T: Game> {
     /// As these actions cannot have a fitness higher than this cutoff, we discard all partially terminated
     /// actions which must be worse than `best_terminated`.
     partially_terminated: Vec<Action<T>>,
+    /// We create and discard a lot of paths.
+    ///
+    /// As an optimization, we therefore can reuse these paths.
+    /// The paths stored here are always empty.
+    path_cache: Vec<Vec<T::Action>>,
 }
 
 impl<'a, T: Game> Ctxt<'a, T> {
@@ -244,7 +258,22 @@ impl<'a, T: Game> Ctxt<'a, T> {
             unfinished,
             terminated: None,
             partially_terminated: Vec::new(),
+            path_cache: Vec::new(),
         }
+    }
+
+    /// Creates a new empty path, potentially reuse the cache.
+    pub fn new_path(&mut self) -> Vec<T::Action> {
+        // While it would be possible to create new paths using `Vec::with_capacity(depth)`
+        // here, this does not actually influence the benchmarks so I decided against it.
+        self.path_cache.pop().unwrap_or_else(Vec::new)
+    }
+
+    /// Discards a path, storing it in the cache.
+    pub fn discard_path(&mut self, mut path: Vec<T::Action>) {
+        // Note that `path.clear()` does not free the allocated storage.
+        path.clear();
+        self.path_cache.push(path);
     }
 
     /// Returns all partially terminated actions may be better than `self.best_unfinished`,
@@ -275,9 +304,17 @@ impl<'a, T: Game> Ctxt<'a, T> {
             .as_ref()
             .map_or(true, |best| best.fitness < act.fitness)
         {
-            self.partially_terminated
-                .retain(|partial| partial.fitness > act.fitness);
-            // We only keep `best` if it is better than `terminated`.
+            // Remove a partially terminated which are worse than the new best terminated action.
+            //
+            // This pretty much a manual reimplementation of `Vec::drain_filter`, which is currently unstable.
+            for i in (0..self.partially_terminated.len()).rev() {
+                if self.partially_terminated[i].fitness <= act.fitness {
+                    let act = self.partially_terminated.swap_remove(i);
+                    self.discard_path(act.path);
+                }
+            }
+
+            // `best` is expected to always be better than `terminated`.
             if let Some(best) = self.best.take() {
                 if best.fitness > act.fitness {
                     // Still relevant, put it back in.
@@ -288,7 +325,11 @@ impl<'a, T: Game> Ctxt<'a, T> {
                 }
             }
 
-            self.terminated = Some(act);
+            if let Some(term) = self.terminated.replace(act) {
+                self.discard_path(term.path);
+            }
+        } else {
+            self.discard_path(act.path);
         }
     }
 
@@ -301,6 +342,8 @@ impl<'a, T: Game> Ctxt<'a, T> {
             .map_or(true, |best| best.fitness < act.fitness)
         {
             self.partially_terminated.push(act);
+        } else {
+            self.discard_path(act.path);
         }
     }
 
@@ -335,7 +378,7 @@ impl<'a, T: Game> Ctxt<'a, T> {
     /// once we are finished.
     fn try_action<U: RunCondition>(
         &mut self,
-        action: Action<T>,
+        mut action: Action<T>,
         depth: u32,
         condition: &mut U,
         on_cancel: impl FnOnce(&mut Self, Action<T>) -> Action<T>,
@@ -365,7 +408,8 @@ impl<'a, T: Game> Ctxt<'a, T> {
                 }
             }
             Ok(MiniMax::Terminated(mut path, Branch::Equal(fitness))) => {
-                path.push(action.path.last().unwrap().clone());
+                path.push(action.path.pop().unwrap());
+                self.discard_path(action.path);
                 let action = Action { fitness, path };
                 if self.state.is_upper_bound(fitness, self.player) {
                     Some(action)
@@ -375,19 +419,22 @@ impl<'a, T: Game> Ctxt<'a, T> {
                 }
             }
             Ok(MiniMax::Terminated(mut path, Branch::Worse(fitness))) => {
-                path.push(action.path.last().unwrap().clone());
+                path.push(action.path.pop().unwrap());
+                self.discard_path(action.path);
                 let action = Action { fitness, path };
                 self.add_partially_terminated(action);
                 None
             }
-            Ok(MiniMax::Open(mut path, Branch::Worse(_))) => {
-                path.push(action.path.last().unwrap().clone());
+            Ok(MiniMax::Open(mut path, Branch::Worse(fitness))) => {
+                path.push(action.path.pop().unwrap());
+                self.discard_path(action.path);
                 let action = Action { fitness, path };
                 self.unfinished.push(action);
                 None
             }
             Ok(MiniMax::Open(mut path, Branch::Equal(fitness))) => {
-                path.push(action.path.last().unwrap().clone());
+                path.push(action.path.pop().unwrap());
+                self.discard_path(action.path);
                 let action = Action { fitness, path };
                 self.add_best(action);
                 None
@@ -429,7 +476,7 @@ impl<'a, T: Game> Ctxt<'a, T> {
     /// As this path is hopefully also a good choice at this depth,
     /// we very quickly get a good alpha/lower limit.
     fn minimax_with_path<U: RunCondition>(
-        &self,
+        &mut self,
         mut path: impl Iterator<Item = T::Action>,
         game_state: T,
         depth: u32,
@@ -453,13 +500,20 @@ impl<'a, T: Game> Ctxt<'a, T> {
 
         let (active, mut game_states) = self.generate_game_states(&game_state);
 
-        let mut state = State::new(game_state, self.player, alpha, None, active);
+        let mut state = State::new(
+            self.new_path(),
+            game_state,
+            self.player,
+            alpha,
+            None,
+            active,
+        );
         match game_states.iter().position(|(_, a, _)| *a == action) {
             Some(idx) => {
                 let (game_state, action, fitness) = game_states.remove(idx);
 
-                if let Some(cutoff) = state.bind(
-                    self.minimax_with_path(
+                let minimax = self
+                    .minimax_with_path(
                         path,
                         game_state,
                         depth - 1,
@@ -467,8 +521,9 @@ impl<'a, T: Game> Ctxt<'a, T> {
                         state.beta,
                         condition,
                     )?
-                    .with(action, fitness),
-                ) {
+                    .with(self, action, fitness);
+
+                if let Some(cutoff) = state.bind(self, minimax) {
                     return Ok(cutoff);
                 }
             }
@@ -476,10 +531,10 @@ impl<'a, T: Game> Ctxt<'a, T> {
         }
 
         for (game_state, action, fitness) in game_states.into_iter().rev() {
-            if let Some(cutoff) = state.bind(
-                self.minimax(game_state, depth - 1, state.alpha, state.beta, condition)?
-                    .with(action, fitness),
-            ) {
+            let minimax = self
+                .minimax(game_state, depth - 1, state.alpha, state.beta, condition)?
+                .with(self, action, fitness);
+            if let Some(cutoff) = state.bind(self, minimax) {
                 return Ok(cutoff);
             }
         }
@@ -488,7 +543,7 @@ impl<'a, T: Game> Ctxt<'a, T> {
     }
 
     fn minimax<U: RunCondition>(
-        &self,
+        &mut self,
         game_state: T,
         depth: u32,
         alpha: Option<T::Fitness>,
@@ -512,7 +567,9 @@ impl<'a, T: Game> Ctxt<'a, T> {
             };
 
             return Ok(selected.map_or(MiniMax::DeadEnd, |(action, fitness)| {
-                MiniMax::Open(vec![action], Branch::Equal(fitness))
+                let mut path = self.new_path();
+                path.push(action);
+                MiniMax::Open(path, Branch::Equal(fitness))
             }));
         }
 
@@ -522,12 +579,19 @@ impl<'a, T: Game> Ctxt<'a, T> {
             return Ok(MiniMax::DeadEnd);
         }
 
-        let mut state = State::new(game_state, self.player, alpha, beta, active);
+        let mut state = State::new(
+            self.new_path(),
+            game_state,
+            self.player,
+            alpha,
+            beta,
+            active,
+        );
         for (game_state, action, fitness) in game_states.into_iter().rev() {
-            if let Some(cutoff) = state.bind(
-                self.minimax(game_state, depth - 1, state.alpha, state.beta, condition)?
-                    .with(action, fitness),
-            ) {
+            let minimax = self
+                .minimax(game_state, depth - 1, state.alpha, state.beta, condition)?
+                .with(self, action, fitness);
+            if let Some(cutoff) = state.bind(self, minimax) {
                 return Ok(cutoff);
             }
         }
@@ -549,6 +613,7 @@ struct State<T: Game> {
 
 impl<T: Game> State<T> {
     fn new(
+        path: Vec<T::Action>,
         state: T,
         player: T::Player,
         alpha: Option<T::Fitness>,
@@ -561,46 +626,54 @@ impl<T: Game> State<T> {
             alpha,
             beta,
             best_fitness: None,
-            path: Vec::new(),
+            path,
             terminated: true,
             active,
         }
     }
 
-    fn update_best_action(&mut self, path: Vec<T::Action>, fitness: Branch<T>) {
+    fn update_best_action(
+        &mut self,
+        ctxt: &mut Ctxt<'_, T>,
+        path: Vec<T::Action>,
+        fitness: Branch<T>,
+    ) {
         assert!(!path.is_empty());
-
-        self.path = path;
+        ctxt.discard_path(mem::replace(&mut self.path, path));
         self.best_fitness = Some(fitness);
     }
 
-    fn bind(&mut self, value: MiniMax<T>) -> Option<MiniMax<T>> {
+    fn bind(&mut self, ctxt: &mut Ctxt<'_, T>, value: MiniMax<T>) -> Option<MiniMax<T>> {
         match value {
             MiniMax::DeadEnd => unreachable!(),
             MiniMax::Terminated(path, Branch::Equal(fitness)) => {
-                self.bind_equal(path, fitness, true);
+                self.bind_equal(ctxt, path, fitness, true);
             }
             MiniMax::Terminated(path, Branch::Better(fitness)) => {
-                self.bind_better(path, fitness, true);
+                self.bind_better(ctxt, path, fitness, true);
             }
             MiniMax::Terminated(path, Branch::Worse(fitness)) => {
-                self.bind_worse(path, fitness, true);
+                self.bind_worse(ctxt, path, fitness, true);
             }
             MiniMax::Open(path, Branch::Equal(fitness)) => {
-                self.bind_equal(path, fitness, false);
+                self.bind_equal(ctxt, path, fitness, false);
             }
             MiniMax::Open(path, Branch::Better(fitness)) => {
-                self.bind_better(path, fitness, false);
+                self.bind_better(ctxt, path, fitness, false);
             }
             MiniMax::Open(path, Branch::Worse(fitness)) => {
-                self.bind_worse(path, fitness, false);
+                self.bind_worse(ctxt, path, fitness, false);
             }
         }
 
         let branch = match self.best_fitness {
-            Some(Branch::Equal(fitness))
-                if (self.active && self.state.is_upper_bound(fitness, self.player))
-                    || (!self.active && self.state.is_lower_bound(fitness, self.player)) =>
+            Some(Branch::Equal(fitness)) | Some(Branch::Better(fitness))
+                if self.active && self.state.is_upper_bound(fitness, self.player) =>
+            {
+                Branch::Equal(fitness)
+            }
+            Some(Branch::Equal(fitness)) | Some(Branch::Worse(fitness))
+                if !self.active && self.state.is_lower_bound(fitness, self.player) =>
             {
                 Branch::Equal(fitness)
             }
@@ -629,13 +702,19 @@ impl<T: Game> State<T> {
         }
     }
 
-    fn bind_equal(&mut self, path: Vec<T::Action>, fitness: T::Fitness, terminated: bool) {
+    fn bind_equal(
+        &mut self,
+        ctxt: &mut Ctxt<'_, T>,
+        path: Vec<T::Action>,
+        fitness: T::Fitness,
+        terminated: bool,
+    ) {
         self.terminated &= terminated;
         if self.active {
             if terminated && self.state.is_upper_bound(fitness, self.player) {
                 self.alpha = Some(fitness);
                 self.beta = Some(fitness);
-                self.best_fitness = Some(Branch::Equal(fitness));
+                self.update_best_action(ctxt, path, Branch::Equal(fitness));
                 self.terminated = true;
             } else {
                 self.alpha = Some(self.alpha.map_or(fitness, |value| cmp::max(value, fitness)));
@@ -644,13 +723,15 @@ impl<T: Game> State<T> {
                     .as_ref()
                     .map_or(true, |old| old.fitness() <= fitness)
                 {
-                    self.update_best_action(path, Branch::Equal(fitness));
+                    self.update_best_action(ctxt, path, Branch::Equal(fitness));
+                } else {
+                    ctxt.discard_path(path);
                 }
             }
         } else if terminated && self.state.is_lower_bound(fitness, self.player) {
             self.alpha = Some(fitness);
             self.beta = Some(fitness);
-            self.best_fitness = Some(Branch::Equal(fitness));
+            self.update_best_action(ctxt, path, Branch::Equal(fitness));
             self.terminated = true;
         } else {
             self.beta = Some(self.beta.map_or(fitness, |value| cmp::min(value, fitness)));
@@ -659,31 +740,48 @@ impl<T: Game> State<T> {
                 .as_ref()
                 .map_or(true, |old| old.fitness() >= fitness)
             {
-                self.update_best_action(path, Branch::Equal(fitness));
+                self.update_best_action(ctxt, path, Branch::Equal(fitness));
+            } else {
+                ctxt.discard_path(path);
             }
         }
     }
 
-    fn bind_better(&mut self, path: Vec<T::Action>, fitness: T::Fitness, terminated: bool) {
+    fn bind_better(
+        &mut self,
+        ctxt: &mut Ctxt<'_, T>,
+        path: Vec<T::Action>,
+        fitness: T::Fitness,
+        terminated: bool,
+    ) {
         self.terminated &= terminated;
         if self.active {
             debug_assert!(self.alpha.map_or(true, |value| value <= fitness));
-            self.alpha = Some(fitness);
             debug_assert!(self
                 .best_fitness
                 .as_ref()
                 .map_or(true, |value| value.fitness() <= fitness));
-            self.update_best_action(path, Branch::Better(fitness));
+
+            self.alpha = Some(fitness);
+            self.update_best_action(ctxt, path, Branch::Better(fitness));
         } else if self
             .best_fitness
             .as_ref()
             .map_or(true, |old| old.fitness() > fitness)
         {
-            self.update_best_action(path, Branch::Better(fitness))
+            self.update_best_action(ctxt, path, Branch::Better(fitness));
+        } else {
+            ctxt.discard_path(path);
         }
     }
 
-    fn bind_worse(&mut self, path: Vec<T::Action>, fitness: T::Fitness, terminated: bool) {
+    fn bind_worse(
+        &mut self,
+        ctxt: &mut Ctxt<'_, T>,
+        path: Vec<T::Action>,
+        fitness: T::Fitness,
+        terminated: bool,
+    ) {
         self.terminated &= terminated;
         if !self.active {
             debug_assert!(self.beta.map_or(true, |value| value >= fitness));
@@ -692,13 +790,15 @@ impl<T: Game> State<T> {
                 .best_fitness
                 .as_ref()
                 .map_or(true, |value| value.fitness() >= fitness));
-            self.update_best_action(path, Branch::Worse(fitness));
+            self.update_best_action(ctxt, path, Branch::Worse(fitness));
         } else if self
             .best_fitness
             .as_ref()
             .map_or(true, |old| old.fitness() < fitness)
         {
-            self.update_best_action(path, Branch::Worse(fitness))
+            self.update_best_action(ctxt, path, Branch::Worse(fitness));
+        } else {
+            ctxt.discard_path(path);
         }
     }
 
