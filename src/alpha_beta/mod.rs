@@ -68,6 +68,17 @@ impl<T: Game> Bot<T> {
     /// This method runs until either the best possible action was found
     /// or one of `RunCondition::depth` and `RunCondition::step` returned `false`.
     pub fn select<U: IntoRunCondition>(&mut self, state: &T, condition: U) -> Option<T::Action> {
+        self.detailed_select(state, condition)
+            .map(|mut act| act.path.pop().unwrap())
+    }
+
+    /// Similar to `select`, except that this function also returns the principal variation and the
+    /// final evaluation of the given action.
+    pub fn detailed_select<U: IntoRunCondition>(
+        &mut self,
+        state: &T,
+        condition: U,
+    ) -> Option<Action<T>> {
         let mut condition = condition.into_run_condition();
 
         let (active, actions) = state.actions(self.player);
@@ -89,12 +100,12 @@ impl<T: Game> Bot<T> {
 
         // Guard against the trivial case.
         if ctxt.unfinished.len() < 2 {
-            return ctxt.unfinished.pop().map(|mut act| act.path.pop().unwrap());
+            return ctxt.unfinished.pop();
         }
 
         for depth in 0.. {
             if !condition.depth(depth) {
-                return ctxt.cancel().path.pop();
+                return Some(ctxt.cancel());
             }
 
             let mut unfinished = mem::take(&mut ctxt.unfinished);
@@ -105,8 +116,8 @@ impl<T: Game> Bot<T> {
             if let Some(best) = ctxt.best.take() {
                 // If computation is cancelled here, we don't know anything new,
                 // so we can just return the previous best action.
-                if let Some(mut ret) = ctxt.try_action(best, depth, &mut condition, |_, act| act) {
-                    return ret.path.pop();
+                if let Some(ret) = ctxt.try_action(best, depth, &mut condition, |_, act| act) {
+                    return Some(ret);
                 }
             }
 
@@ -121,8 +132,8 @@ impl<T: Game> Bot<T> {
                     ctxt.cancel()
                 };
 
-                if let Some(mut ret) = ctxt.try_action(action, depth, &mut condition, on_cancel) {
-                    return ret.path.pop();
+                if let Some(ret) = ctxt.try_action(action, depth, &mut condition, on_cancel) {
+                    return Some(ret);
                 }
             }
 
@@ -136,22 +147,38 @@ impl<T: Game> Bot<T> {
                 // In case computation is cancelled here, we already tested at least some actions which were better than
                 // the cancelled partial action at the previous depth, so we can use `ctxt.cancel()` without any special
                 // considerations.
-                if let Some(mut ret) =
+                if let Some(ret) =
                     ctxt.try_action(action, depth, &mut condition, |ctxt, _| ctxt.cancel())
                 {
-                    return ret.path.pop();
+                    return Some(ret);
                 }
             }
 
             // All partially terminated actions are worse than all completely terminated actions.
             if ctxt.unfinished.is_empty() && ctxt.best.is_none() {
                 assert!(ctxt.partially_terminated.is_empty());
-                return ctxt.terminated.unwrap().path.pop();
+                return Some(ctxt.terminated.unwrap());
             }
         }
 
         unreachable!();
     }
+}
+
+/// A top level action.
+pub struct Action<T: Game> {
+    /// The current fitness of a given action.
+    ///
+    /// This can mean one of the following things:
+    ///
+    /// - For the best unfinished action, this is exact, but only for the current depth.
+    /// - For a terminated action, this is exact.
+    /// - For a partially terminated action, this is the upper limit.
+    pub fitness: T::Fitness,
+    /// The expected path taken during optimal play, when only  inspectnig up to the current depth.
+    ///
+    /// This used as a stack, with `path.pop()` being the first action.
+    pub path: Vec<T::Action>,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -215,22 +242,6 @@ impl<T: Game> Branch<T> {
             Branch::Worse(fitness) | Branch::Better(fitness) | Branch::Equal(fitness) => fitness,
         }
     }
-}
-
-/// A top level action.
-struct Action<T: Game> {
-    /// The current fitness of a given action.
-    ///
-    /// This can mean one of the following things:
-    ///
-    /// - For the best unfinished action, this is exact, but only for the current depth.
-    /// - For a terminated action, this is exact.
-    /// - For a partially terminated action, this is the upper limit.
-    fitness: T::Fitness,
-    /// The expected path taken during optimal play, when only  inspectnig up to the current depth.
-    ///
-    /// This used as a stack, with `path.pop()` being the first action.
-    path: Vec<T::Action>,
 }
 
 /// The currently available data at the highest level, during minimax `State` is used instead.
@@ -471,7 +482,7 @@ impl<'a, T: Game> Ctxt<'a, T> {
                 (game_state, action, fitness)
             })
             .collect();
-        
+
         // Sort the actions so the most probable one is checked first.
         // This allows for faster cutoffs. Note that depending on the fitness
         // function, this can hit some fairly bad cases.
