@@ -266,7 +266,7 @@ pub struct Ctxt<'a, T: Game> {
     ///
     /// As an optimization, we therefore can reuse these paths.
     /// The paths stored here are always empty. This causes an about
-    /// 1.5% performance increase.
+    /// 2% performance increase.
     path_cache: Vec<Vec<T::Action>>,
 }
 
