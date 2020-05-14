@@ -471,11 +471,14 @@ impl<'a, T: Game> Ctxt<'a, T> {
                 (game_state, action, fitness)
             })
             .collect();
-
+        
+        // Sort the actions so the most probable one is checked first.
+        // This allows for faster cutoffs. Note that depending on the fitness
+        // function, this can hit some fairly bad cases.
         if active {
-            game_states.sort_unstable_by(|(_, _, a), (_, _, b)| a.cmp(b));
-        } else {
             game_states.sort_unstable_by(|(_, _, a), (_, _, b)| b.cmp(a));
+        } else {
+            game_states.sort_unstable_by(|(_, _, a), (_, _, b)| a.cmp(b));
         }
 
         (active, game_states)
@@ -542,7 +545,7 @@ impl<'a, T: Game> Ctxt<'a, T> {
             None => unreachable!("path segment not found"),
         }
 
-        for (game_state, action, fitness) in game_states.into_iter().rev() {
+        for (game_state, action, fitness) in game_states {
             let minimax = self
                 .minimax(game_state, depth - 1, state.alpha, state.beta, condition)?
                 .with(self, action, fitness);
@@ -599,7 +602,7 @@ impl<'a, T: Game> Ctxt<'a, T> {
             beta,
             active,
         );
-        for (game_state, action, fitness) in game_states.into_iter().rev() {
+        for (game_state, action, fitness) in game_states {
             let minimax = self
                 .minimax(game_state, depth - 1, state.alpha, state.beta, condition)?
                 .with(self, action, fitness);
