@@ -21,3 +21,10 @@ this version was mostly focussed on improving `alpha_beta::Bot::select` and remo
   - all methods are now non const.
   - `children` is renamed to `with_children` and does not require the given reference to be `'static`
   - add methods `push_child`, `child_count`, `from_bytes` and `is_leaf`
+
+## 0.3.0
+
+it is now possible to get the expected fitness and path from a call to `bot.select`.
+
+- `Game`
+  - `type Action` must now be `Clone`.

@@ -21,14 +21,14 @@ fn no_steps() {
 #[test]
 fn fuzz_one() {
     #[rustfmt::skip]
-    let fuzz_one = Node::root().with_children(&[
+    let tree = Node::root().with_children(&[
         Node::new(true, -1),
         Node::new(true, 65).with_children(&[
             Node::new(false, 0),
         ]),
         Node::new(true, 11),
     ]);
-    let selected = Bot::new(true).select(&fuzz_one, Steps(2));
+    let selected = Bot::new(true).select(&tree, Steps(2));
     assert!(
         [Some(1), Some(2)]
             .iter()
@@ -37,4 +37,20 @@ fn fuzz_one() {
         "actual: {:?}",
         selected
     );
+}
+
+#[test]
+fn fuzz_two() {
+    #[rustfmt::skip]
+    let tree = Node::root().with_children(&[
+        Node::new(true, 0).with_children(&[
+            Node::new(true, 127)
+        ]),
+        Node::new(true, -5).with_children(&[
+            Node::new(false, 6),
+        ]),
+        Node::new(true, 0),
+    ]);
+    let selected = Bot::new(true).select(&tree, Steps(7));
+    assert_eq!(selected, Some(0));
 }

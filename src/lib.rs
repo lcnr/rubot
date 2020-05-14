@@ -58,6 +58,7 @@ pub mod brute;
 mod tests;
 
 use std::cmp::PartialEq;
+use std::fmt::{self, Debug};
 use std::ops::Drop;
 use std::time::{Duration, Instant};
 
@@ -164,7 +165,7 @@ use std::time::{Duration, Instant};
 /// struct PlaceholderGame;
 /// #[derive(Clone, Copy)]
 /// struct PlaceholderPlayer;
-/// #[derive(PartialEq)]
+/// #[derive(Clone, PartialEq)]
 /// struct PlaceholderAction;
 /// #[derive(Clone, Copy, PartialOrd, Ord, PartialEq, Eq)]
 /// struct PlaceholderFitness;
@@ -192,7 +193,7 @@ pub trait Game: Clone {
     /// The player type.
     type Player: Copy;
     /// An executable action.
-    type Action: PartialEq;
+    type Action: PartialEq + Clone;
     /// The fitness of a state.
     type Fitness: Ord + Copy;
     /// The collection returned by [`actions`][ac].
@@ -345,6 +346,7 @@ pub struct Steps(pub u32);
 /// [rc]: trait.RunCondition.html
 /// [steps]: struct.Steps.html
 #[doc(hidden)]
+#[derive(Debug)]
 pub struct InnerSteps(u32, u32);
 
 impl IntoRunCondition for Steps {
@@ -445,7 +447,8 @@ impl RunCondition for ToCompletion {
     }
 }
 
-/// A struct implementing [`RunCondition`][rc] returning `false` once the current depth is bigger than `self.0`.
+/// A struct implementing [`RunCondition`][rc] returning cancelling the computation once the depth `self.0`
+/// is reached.
 ///
 /// # Examples
 ///
@@ -516,6 +519,21 @@ pub struct Logger<T: IntoRunCondition> {
     depth: u32,
     completed: bool,
     duration: Duration,
+}
+
+impl<T: IntoRunCondition> Debug for Logger<T>
+where
+    T::RunCondition: Debug,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Logger")
+            .field("condition", &self.condition)
+            .field("steps", &self.steps)
+            .field("depth", &self.depth)
+            .field("completed", &self.completed)
+            .field("duration", &self.duration)
+            .finish()
+    }
 }
 
 impl<T: IntoRunCondition> Logger<T> {
