@@ -200,10 +200,19 @@ enum Branch<T: Game> {
     Equal(T::Fitness),
 }
 
+impl<T: Game> Clone for Branch<T> {
+    fn clone(&self) -> Branch<T> {
+        *self
+    }
+}
+
+impl<T: Game> Copy for Branch<T> {}
+
 impl<T: Game> Branch<T> {
-    fn fitness(&self) -> T::Fitness {
+    #[inline(always)]
+    fn fitness(self) -> T::Fitness {
         match self {
-            Branch::Worse(fitness) | Branch::Better(fitness) | Branch::Equal(fitness) => *fitness,
+            Branch::Worse(fitness) | Branch::Better(fitness) | Branch::Equal(fitness) => fitness,
         }
     }
 }
@@ -245,7 +254,8 @@ pub struct Ctxt<'a, T: Game> {
     /// We create and discard a lot of paths.
     ///
     /// As an optimization, we therefore can reuse these paths.
-    /// The paths stored here are always empty.
+    /// The paths stored here are always empty. This causes an about
+    /// 1.5% performance increase.
     path_cache: Vec<Vec<T::Action>>,
 }
 
@@ -263,6 +273,7 @@ impl<'a, T: Game> Ctxt<'a, T> {
     }
 
     /// Creates a new empty path, potentially reuse the cache.
+    #[inline(always)]
     pub fn new_path(&mut self) -> Vec<T::Action> {
         // While it would be possible to create new paths using `Vec::with_capacity(depth)`
         // here, this does not actually influence the benchmarks so I decided against it.
@@ -270,6 +281,7 @@ impl<'a, T: Game> Ctxt<'a, T> {
     }
 
     /// Discards a path, storing it in the cache.
+    #[inline(always)]
     pub fn discard_path(&mut self, mut path: Vec<T::Action>) {
         // Note that `path.clear()` does not free the allocated storage.
         path.clear();
@@ -712,8 +724,6 @@ impl<T: Game> State<T> {
         self.terminated &= terminated;
         if self.active {
             if terminated && self.state.is_upper_bound(fitness, self.player) {
-                self.alpha = Some(fitness);
-                self.beta = Some(fitness);
                 self.update_best_action(ctxt, path, Branch::Equal(fitness));
                 self.terminated = true;
             } else {
@@ -729,8 +739,6 @@ impl<T: Game> State<T> {
                 }
             }
         } else if terminated && self.state.is_lower_bound(fitness, self.player) {
-            self.alpha = Some(fitness);
-            self.beta = Some(fitness);
             self.update_best_action(ctxt, path, Branch::Equal(fitness));
             self.terminated = true;
         } else {
