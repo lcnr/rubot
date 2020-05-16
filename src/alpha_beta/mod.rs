@@ -487,9 +487,9 @@ impl<'a, T: Game> Ctxt<'a, T> {
         // This allows for faster cutoffs. Note that depending on the fitness
         // function, this can hit some fairly bad cases.
         if active {
-            game_states.sort_unstable_by(|(_, _, a), (_, _, b)| b.cmp(a));
+            game_states.sort_by(|(_, _, a), (_, _, b)| b.cmp(a));
         } else {
-            game_states.sort_unstable_by(|(_, _, a), (_, _, b)| a.cmp(b));
+            game_states.sort_by(|(_, _, a), (_, _, b)| a.cmp(b));
         }
 
         (active, game_states)
