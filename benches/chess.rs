@@ -1,6 +1,6 @@
 #![allow(unused)]
 
-use shakmaty::{fen::Fen, Color, Move, MoveList, Outcome, Position, Role, Setup};
+use shakmaty::{fen::Fen, Color, FromSetup, Move, MoveList, Outcome, Position, Role, Setup};
 
 #[derive(Debug, Clone, Default)]
 pub struct Chess(pub shakmaty::Chess);
