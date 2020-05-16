@@ -3,7 +3,7 @@ use crate::{Game, IntoRunCondition, RunCondition};
 
 use tapir::Tap;
 
-use std::cmp;
+use std::cmp::{self, Reverse};
 use std::mem;
 
 mod debug;
@@ -68,7 +68,7 @@ impl<T: Game> Bot<T> {
     /// This method runs until either the best possible action was found
     /// or one of `RunCondition::depth` and `RunCondition::step` returned `false`.
     pub fn select<U: IntoRunCondition>(&mut self, state: &T, condition: U) -> Option<T::Action> {
-        self.detailed_select(state, condition)
+        self.inner_select(state, condition)
             .map(|mut act| act.path.pop().unwrap())
     }
 
@@ -79,6 +79,11 @@ impl<T: Game> Bot<T> {
         state: &T,
         condition: U,
     ) -> Option<Action<T>> {
+        self.inner_select(state, condition)
+            .map(|act| act.tap(|act| act.path.reverse()))
+    }
+
+    fn inner_select<U: IntoRunCondition>(&mut self, state: &T, condition: U) -> Option<Action<T>> {
         let mut condition = condition.into_run_condition();
 
         let (active, actions) = state.actions(self.player);
@@ -111,7 +116,7 @@ impl<T: Game> Bot<T> {
             let mut unfinished = mem::take(&mut ctxt.unfinished);
             // Try unfinished actions with a high expected fitness first,
             // as they are expected to give us a better alpha value.
-            unfinished.sort_by_key(|act| act.fitness);
+            unfinished.sort_by_key(|act| Reverse(act.fitness));
 
             if let Some(best) = ctxt.best.take() {
                 // If computation is cancelled here, we don't know anything new,
@@ -121,7 +126,7 @@ impl<T: Game> Bot<T> {
                 }
             }
 
-            for action in unfinished.into_iter().rev() {
+            for action in unfinished.into_iter() {
                 // In case computation is cancelled here, we may not yet have computed the best action of
                 // the previous depth, to guard against this, we add the cancelled action back to `state.unfinished`
                 // in case it is still empty.
