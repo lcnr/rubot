@@ -91,26 +91,30 @@ impl<T: Game> Bot<T> {
             return None;
         }
 
-        let mut ctxt = Ctxt::new(
-            state,
-            self.player,
-            actions
-                .into_iter()
-                .map(|action| Action {
-                    fitness: state.look_ahead(&action, self.player),
-                    path: vec![action],
-                })
-                .collect(),
-        );
+        let actions: Vec<_> = actions
+            .into_iter()
+            .map(|action| Action {
+                fitness: state.look_ahead(&action, self.player),
+                path: vec![action],
+            })
+            .collect();
 
-        // Guard against the trivial case.
-        if ctxt.unfinished.len() < 2 {
-            return ctxt.unfinished.pop();
+        if actions.is_empty() {
+            return None;
         }
+
+        let mut ctxt = Ctxt::new(state, self.player, actions);
 
         for depth in 0.. {
             if !condition.depth(depth) {
                 return Some(ctxt.cancel());
+            }
+
+            // Return early in case there is only one relevant action left.
+            // This is the case if we either only have one possible actions,
+            // or if all other possible actions are worse than the lower bound.
+            if let Some(exhausted) = ctxt.exhausted() {
+                return Some(exhausted);
             }
 
             let mut unfinished = mem::take(&mut ctxt.unfinished);
@@ -157,12 +161,6 @@ impl<T: Game> Bot<T> {
                 {
                     return Some(ret);
                 }
-            }
-
-            // All partially terminated actions are worse than all completely terminated actions.
-            if ctxt.unfinished.is_empty() && ctxt.best.is_none() {
-                assert!(ctxt.partially_terminated.is_empty());
-                return Some(ctxt.terminated.unwrap());
             }
         }
 
@@ -223,12 +221,22 @@ impl<T: Game> MiniMax<T> {
     }
 }
 
+/// A fitness and how it was calculated,
+/// this is used if we want to know whether a cutoff occurred.
 enum Branch<T: Game> {
-    /// `actual_fitness <= fitness`
+    /// `actual_fitness <= fitness`.
+    ///
+    /// Used if the given branch is worse than the current `beta`.
+    /// Confusingly, this is also called an `alpha` cutoff.
     Worse(T::Fitness),
-    /// `actual_fitness >= fitness`
+    /// `actual_fitness >= fitness`.
+    ///
+    /// Used if the given branch is better than the current `alpha`.
+    /// Confusingly, this is also called a `beta` cutoff.
     Better(T::Fitness),
-    /// `actual_fitness == fitness`
+    /// `actual_fitness == fitness`.
+    ///
+    /// Used if no cutoff occured.
     Equal(T::Fitness),
 }
 
@@ -267,6 +275,9 @@ pub struct Ctxt<'a, T: Game> {
     /// As these actions cannot have a fitness higher than this cutoff, we discard all partially terminated
     /// actions which must be worse than `best_terminated`.
     partially_terminated: Vec<Action<T>>,
+    /// In case all paths lead to defeat, we store the action which takes the longest,
+    /// so the bot doesn't start doing weird stuff once it realized it's lost.
+    losing_action: Option<Action<T>>,
     /// We create and discard a lot of paths.
     ///
     /// As an optimization, we therefore can reuse these paths.
@@ -283,6 +294,7 @@ impl<'a, T: Game> Ctxt<'a, T> {
             best: None,
             unfinished,
             terminated: None,
+            losing_action: None,
             partially_terminated: Vec::new(),
             path_cache: Vec::new(),
         }
@@ -394,12 +406,32 @@ impl<'a, T: Game> Ctxt<'a, T> {
         self.best
             .take()
             .or(self.terminated.take())
-            .unwrap_or_else(|| {
+            .or_else(|| {
                 mem::take(&mut self.unfinished)
                     .into_iter()
                     .max_by_key(|act| act.fitness)
-                    .unwrap()
             })
+            .unwrap_or_else(|| {
+                // In case no other action exists,
+                // we need at least one guaranteed losing action.
+                self.losing_action.take().unwrap()
+            })
+    }
+
+    fn exhausted(&mut self) -> Option<Action<T>> {
+        if self.best.is_none() && self.unfinished.is_empty() {
+            // We can only get partially terminated actions in
+            // case there is a better non terminated one.
+            assert!(self.partially_terminated.is_empty());
+
+            Some(
+                self.terminated
+                    .take()
+                    .unwrap_or_else(|| self.losing_action.take().unwrap()),
+            )
+        } else {
+            None
+        }
     }
 
     /// Tests the given action at the current depth, returns `Some`
@@ -430,6 +462,16 @@ impl<'a, T: Game> Ctxt<'a, T> {
             Ok(MiniMax::DeadEnd) => {
                 if self.state.is_upper_bound(fitness, self.player) {
                     Some(action)
+                } else if self.state.is_lower_bound(fitness, self.player) {
+                    if self
+                        .losing_action
+                        .as_ref()
+                        .map_or(true, |act| act.path.len() < action.path.len())
+                    {
+                        let act = self.losing_action.replace(action);
+                        act.map(|act| self.discard_path(act.path));
+                    }
+                    None
                 } else {
                     self.add_terminated(action);
                     None
@@ -441,6 +483,16 @@ impl<'a, T: Game> Ctxt<'a, T> {
                 let action = Action { fitness, path };
                 if self.state.is_upper_bound(fitness, self.player) {
                     Some(action)
+                } else if self.state.is_lower_bound(fitness, self.player) {
+                    if self
+                        .losing_action
+                        .as_ref()
+                        .map_or(true, |act| act.path.len() < action.path.len())
+                    {
+                        let act = self.losing_action.replace(action);
+                        act.map(|act| self.discard_path(act.path));
+                    }
+                    None
                 } else {
                     self.add_terminated(action);
                     None

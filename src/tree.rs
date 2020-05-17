@@ -55,11 +55,11 @@ impl Game for Node {
     }
 
     fn is_upper_bound(&self, fitness: Self::Fitness, _: Self::Player) -> bool {
-        fitness == std::i8::MAX
+        fitness == i8::MAX
     }
 
     fn is_lower_bound(&self, fitness: Self::Fitness, _: Self::Player) -> bool {
-        fitness == std::i8::MIN
+        fitness == i8::MIN
     }
 }
 

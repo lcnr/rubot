@@ -508,7 +508,7 @@ impl RunCondition for Depth {
 /// let mut logger = Logger::new(ToCompletion);
 /// assert_eq!(bot.select(&tree, &mut logger), Some(1));
 ///
-/// assert_eq!(logger.depth(), 1);
+/// assert_eq!(logger.depth(), 2);
 /// // the total duration of `bot.select`
 /// assert!(logger.duration() < Duration::from_secs(1));
 /// ```

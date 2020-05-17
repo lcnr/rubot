@@ -247,3 +247,31 @@ fn subtree_cutoff() {
         Some(0)
     );
 }
+
+// In case all actions are worse than the lower bound, return the action taking the
+// most steps to get there.
+#[test]
+fn with_my_dying_breath() {
+    #[rustfmt::skip]
+    let tree = Node::root().with_children(&[
+        Node::new(true, 0).with_children(&[
+            Node::new(true, i8::MIN),
+        ]),
+        Node::new(true, i8::MIN),
+    ]);
+    assert_eq!(Bot::new(true).select(&tree, ToCompletion), Some(0));
+
+    #[rustfmt::skip]
+    let tree = Node::root().with_children(&[
+        Node::new(true, 0).with_children(&[
+            Node::new(true, i8::MIN),
+        ]),
+        Node::new(true, 0).with_children(&[
+            Node::new(true, 0).with_children(&[
+                Node::new(true, i8::MIN),
+            ]),
+        ]),
+        Node::new(true, i8::MIN),
+    ]);
+    assert_eq!(Bot::new(true).select(&tree, ToCompletion), Some(1));
+}
