@@ -74,6 +74,27 @@ impl<T: Game> Bot<T> {
 
     /// Similar to `select`, except that this function also returns the principal variation and the
     /// final evaluation of the given action.
+    ///
+    /// The actions are sorted in order they are executed, so
+    /// `action.path[0]` is always equal to the result of `select`.
+    ///
+    /// ```rust
+    /// use rubot::{Bot, ToCompletion, tree::Node};
+    ///
+    /// # #[rustfmt::skip]
+    /// let tree = Node::root().with_children(&[
+    ///     Node::new(true, 4),
+    ///     Node::new(true, 0).with_children(&[
+    ///         Node::new(true, 5), // This is the best possible result.
+    ///         Node::new(true, 3),
+    ///     ])
+    /// ]);
+    ///
+    /// assert_eq!(&Bot::new(true)
+    ///     .detailed_select(&tree, ToCompletion)
+    ///     .unwrap()
+    ///     .path, &[1, 0]);
+    /// ```
     pub fn detailed_select<U: IntoRunCondition>(
         &mut self,
         state: &T,
@@ -258,7 +279,7 @@ impl<T: Game> Branch<T> {
 }
 
 /// The currently available data at the highest level, during minimax `State` is used instead.
-pub struct Ctxt<'a, T: Game> {
+struct Ctxt<'a, T: Game> {
     /// The initial gamestate.
     state: &'a T,
     /// The maximizing player.

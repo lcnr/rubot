@@ -24,7 +24,9 @@ this version was mostly focussed on improving `alpha_beta::Bot::select` and remo
 
 ## 0.3.0
 
-it is now possible to get the expected fitness and path from a call to `bot.select`.
+it is now possible to get the expected fitness and path from `Bot` using `detailed_select`.
 
 - `Game`
   - `type Action` must now be `Clone`.
+- `Bot`
+  - added `fn detailed_select`.
