@@ -7,7 +7,7 @@ categories = [ "algorithms", "game-engines" ]
 license = "MIT"
 exclude = ["fuzz/*", "baseline"]
 repository = "https://github.com/lcnr/rubot"
-version = "0.2.0"
+version = "0.3.0"
 readme = "README.md"
 edition = "2018"
 
