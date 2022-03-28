@@ -199,7 +199,7 @@ pub struct Action<T: Game> {
     /// - For a terminated action, this is exact.
     /// - For a partially terminated action, this is the upper limit.
     pub fitness: T::Fitness,
-    /// The expected path taken during optimal play, when only  inspectnig up to the current depth.
+    /// The expected path taken during optimal play, when only  inspecting up to the current depth.
     ///
     /// This used as a stack, with `path.pop()` being the first action.
     pub path: Vec<T::Action>,
